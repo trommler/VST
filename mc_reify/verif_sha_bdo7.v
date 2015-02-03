@@ -434,8 +434,15 @@ Require Import mc_reify.hoist_later_in_pre.
 Require Import mc_reify.set_load_store.
 Require Import mc_reify.symexe.
 Require Import floyd.proofauto.
+Import Timing.
 
-(*
+Ltac lforward :=
+start_timer "101 ltac forward";
+forward.forward;
+stop_timer "101 ltac forward".
+
+Clear Timing Profile.
+
 Lemma bdo_loop2_body_proof_Ltac:
  forall (Espec : OracleKind)
    (b : list int) (ctx : val) ( regs : list int) (i : nat) kv Xv
@@ -475,6 +482,7 @@ semax (remove_global_spec Delta_loop1)
       SEP  (`(K_vector kv);
       `(data_at Tsh (tarray tuint LBLOCKz) (map Vint (Xarray b i0)) Xv)))).
 Proof.
+start_timer "100 ltac total".
 intros.
 unfold bdo_loop2_body; abbreviate_semax.
 name a_ _a.
@@ -501,29 +509,40 @@ assert (16 <= Z.of_nat i < 64)%Z. {
 change (tarray tuint LBLOCKz) with (tarray tuint 16).
 change LBLOCKz with 16%Z in H.
 
-forward.forward.	(*s0 = X[(i+1)&0x0f]; *)
+lforward.	(*s0 = X[(i+1)&0x0f]; *)
 {
   entailer!.
 }
+{
+  solve_legal_nested_field_in_entailment'.
+}
 rewrite Znth_nthi' by reflexivity.
-forward.forward. (* s0 = sigma0(s0); *)
+lforward. (* s0 = sigma0(s0); *)
 rename x into s0'.
 rewrite extract_from_b by auto; rewrite Int.and_mone; rewrite <- sigma_0_eq.
 drop_LOCAL 1. clear s0'.
 
-forward.forward. (* s1 = X[(i+14)&0x0f]; *)
+lforward. (* s1 = X[(i+14)&0x0f]; *)
 {
   entailer!.
 }
+{
+  solve_legal_nested_field_in_entailment'.
+}
 rewrite Znth_nthi' by reflexivity.
 
-forward.forward. (* s1 = sigma1(s1); *)
+lforward. (* s1 = sigma1(s1); *)
 rename x into s1'.
 rewrite extract_from_b by auto; rewrite Int.and_mone; rewrite <- sigma_1_eq.
 drop_LOCAL 1. clear s1'.
 
-forward.forward. (* T1 = X[i&0xf]; *)
- entailer!.
+lforward. (* T1 = X[i&0xf]; *)
+{
+  entailer!.
+}
+{
+  solve_legal_nested_field_in_entailment'.
+}
 rewrite Znth_nthi' by reflexivity.
 replace (nthi (Xarray b i) (Z.of_nat i mod 16))
   with (W (nthi b) (Z.of_nat i - 16 + 0))
@@ -531,31 +550,45 @@ replace (nthi (Xarray b i) (Z.of_nat i mod 16))
         by (rewrite Z.add_0_r; auto);
       rewrite extract_from_b; try omega; auto).
 
-forward.forward. (* t = X[(i+9)&0xf]; *)
+lforward. (* t = X[(i+9)&0xf]; *)
+{
   entailer!.
+}
+{
+  solve_legal_nested_field_in_entailment'.
+}
 rewrite Znth_nthi' by reflexivity.
 rewrite extract_from_b by (try assumption; try omega).
 
-forward.forward.  (* T1 += s0 + s1 + t; *)
+lforward.  (* T1 += s0 + s1 + t; *)
 pattern (Z.of_nat i - 16)%Z at 1.
 rewrite <- (Z.add_0_r (Z.of_nat i - 16)%Z).
 rewrite <- (W_unfold i b) by auto.
 do 3 drop_LOCAL 1%nat.
 clear x.
 
-forward.forward. (* X[i&0xf] = T1; *)
+lforward. (* X[i&0xf] = T1; *)
+{
+  entailer!.
+}
+{
+  solve_legal_nested_field_in_entailment'.
+}
 rewrite Zland_15.
-Check Xarray_update.
 unfold upd_reptype; simpl.
 rewrite Xarray_update by assumption.
 unfold K_vector.
 change CBLOCKz with 64%Z.
 change (Zlength K256) with 64%Z.
-forward.forward.  (* Ki=K256[i]; *)
- {entailer!.
+lforward.  (* Ki=K256[i]; *)
+{
+  entailer!.
   rewrite Znth_nthi by (change (Zlength K256) with 64%Z; omega).
   apply I.
- }
+}
+{
+  solve_legal_nested_field_in_entailment'.
+}
 rewrite Znth_nthi by (change (Zlength K256) with 64%Z; omega).
 rename b into bb.
 remember (Round regs (nthi bb) (Z.of_nat i - 1)) as regs' eqn:?.
@@ -569,13 +602,13 @@ rewrite Heqregs' in *. clear Heqregs'.
 rewrite H2.
 unfold nthi at 4 5 6 7 8 9 10 11; simpl.
 unfold rearrange_regs2b.
-forward.forward. (* T1 += h + Sigma1(e) + Ch(e,f,g) + Ki; *)
+lforward. (* T1 += h + Sigma1(e) + Ch(e,f,g) + Ki; *)
 rewrite <- Sigma_1_eq, <- Ch_eq.
 drop_LOCAL 2. clear x.
-forward.forward. 	(* T2 = Sigma0(a) + Maj(a,b,c); *)
+lforward. 	(* T2 = Sigma0(a) + Maj(a,b,c); *)
 rewrite <- Sigma_0_eq, <- Maj_eq.
 unfold rearrange_regs2c.
-repeat forward.forward. (* 8 sets *)
+repeat lforward. (* 8 sets *)
 simpl update_tycon.
 apply exp_right with (i+1)%nat.
 entailer; apply prop_right.
@@ -592,14 +625,23 @@ unfold nthi at 1; simpl.
 f_equal. rewrite Int.add_commut.
 f_equal. f_equal. unfold nthi. rewrite Nat2Z.id; auto.
 simpl.
-f_equal. rewrite Int.add_commut. f_equal.
-Qed.
+f_equal. rewrite Int.add_commut. 
+stop_timer "100 ltac total".
+f_equal.
+Time Qed.
+
+Print Timing Profile.
 
 (* 153 seconds to go though. 130 extra seconds to Qed. *)
 
+Lemma map_id: forall {A} {B} (f: A -> B) xs, map (fun x: B => x) (map f xs) = map f xs.
+Proof.
+  intros.
+  rewrite map_map.
+  f_equal.
+Qed.
 
-
-
+Clear Timing Profile.
 
 Lemma bdo_loop2_body_proof_Rtac:
  forall (Espec : OracleKind)
@@ -640,6 +682,7 @@ semax (remove_global_spec Delta_loop1)
       SEP  (`(K_vector kv);
       `(data_at Tsh (tarray tuint LBLOCKz) (map Vint (Xarray b i0)) Xv)))).
 Proof.
+start_timer "200 rtac total".
 intros.
 unfold bdo_loop2_body; abbreviate_semax.
 name a_ _a.
@@ -667,8 +710,6 @@ change (tarray tuint LBLOCKz) with (tarray tuint 16).
 change LBLOCKz with 16%Z in H.
 
 
-
-
 unfold K_vector.
 change (Zlength K256) with 64%Z.
 unfold remove_global_spec.
@@ -681,29 +722,57 @@ end.
 prepare_reify.
 unfold PTree.set, PTree.prev, tarray, tint; simpl.
 
-Clear Timing Profile.
-
-Set Printing Depth 4.
-
 rforward.
-admit.
-Qed.
+repeat split.
++ admit.
++ intros. apply andp_right.
+  - simpl typeof.
+    unfold proj_val, proj_reptype; simpl.
+    rewrite map_id.
+    apply prop_right, Znth_land_is_int.
+  - apply prop_right.
+    solve_legal_nested_field.
++ intros. apply andp_right.
+  - simpl typeof.
+    unfold proj_val, proj_reptype; simpl.
+    rewrite map_id.
+    apply prop_right, Znth_land_is_int.
+  - apply prop_right.
+    solve_legal_nested_field.
++ intros. apply andp_right.
+  - simpl typeof.
+    unfold proj_val, proj_reptype; simpl.
+    rewrite map_id.
+    apply prop_right, Znth_land_is_int.
+  - apply prop_right.
+    solve_legal_nested_field.
++ intros. apply andp_right.
+  - simpl typeof.
+    unfold proj_val, proj_reptype; simpl.
+    rewrite map_id.
+    apply prop_right, Znth_land_is_int.
+  - apply prop_right.
+    solve_legal_nested_field.
++ intros.
+  apply prop_right.
+  solve_legal_nested_field.
++ intros. apply andp_right.
+  - simpl typeof.
+    unfold proj_val, proj_reptype; simpl.
+    rewrite !map_id.
+    entailer!.
+    rewrite Znth_nthi by (change (Zlength K256) with 64%Z; omega).
+    apply I.
+  - entailer!.
+    solve_legal_nested_field.
+stop_timer "200 rtac total".
+    omega.
+Time Qed.
 
+Print Timing Profile.
 (* 28 seconds to go through, 460 more secondes to qed. *)
 
-
-
-
-
-
-
-
-*)
-
-
-
-
-
+Clear Timing Profile.
 
 Lemma bdo_loop2_body_proof_Ltac2:
  forall (Espec : OracleKind)
@@ -744,6 +813,7 @@ semax (remove_global_spec Delta_loop1)
       SEP  (`(K_vector kv);
       `(data_at Tsh (tarray tuint LBLOCKz) (map Vint (Xarray b i0)) Xv)))).
 Proof.
+start_timer "100 ltac total".
 intros.
 unfold bdo_loop2_body; abbreviate_semax.
 name a_ _a.
@@ -773,31 +843,29 @@ change LBLOCKz with 16%Z in H.
 unfold K_vector.
 change (Zlength K256) with 64%Z.
 
-Time 
-forward.forward;
-[| | forward.forward];
-[| | forward.forward];
-[| | | | forward.forward];
-[| | | | forward.forward];
-[| | | | | | forward.forward];
-[| | | | | | | | forward.forward];
-[| | | | | | | | forward.forward]; (*cstore*)
-[| | | | | | | | | | forward.forward];
-[| | | | | | | | | | | | unfold rearrange_regs2b, rearrange_regs2c; repeat forward.forward].
-(* 107 seconds *)
-Abort.
-
-
-
-
-
-
-
-
-
+lforward; [entailer! | solve_legal_nested_field_in_entailment' |].
+lforward.
+lforward; [entailer! | solve_legal_nested_field_in_entailment' |].
+lforward.
+lforward; [entailer! | solve_legal_nested_field_in_entailment' |].
+lforward; [entailer! | solve_legal_nested_field_in_entailment' |].
+lforward.
+lforward; [entailer! | solve_legal_nested_field_in_entailment' |].
+lforward; [entailer!;
+           rewrite Znth_nthi by (change (Zlength K256) with 64%Z; omega);
+           apply I |
+           solve_legal_nested_field_in_entailment' |].
+unfold rearrange_regs2b, rearrange_regs2c; repeat lforward.
+stop_timer "100 ltac total".
+admit.
+Time Qed.
+(* 623 seconds to qed. *)
 
 Print Timing Profile.
 
+
+
+(*
 (*
 Time rforward. (* 8.0 seconds. *)
 
@@ -834,3 +902,4 @@ Check Znth_nthi'.
 
 
 
+*)

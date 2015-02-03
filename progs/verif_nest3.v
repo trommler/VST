@@ -28,6 +28,28 @@ Definition set_spec :=
   POST [ tvoid ]
         `(data_at Ews t_struct_c (repinj _ (update222 i v)) p).
 
+Definition multi_command_spec :=
+ DECLARE _multi_command
+  WITH i111: int,
+       i112: int,
+       i121: int,
+       i122: int,
+       i211: int,
+       i212: int,
+       i221: int,
+       i222: int,
+       p: val
+  PRE  []
+        PROP ()
+        LOCAL(var _p t_struct_c p)
+        SEP(`(data_at Ews t_struct_c
+               (repinj t_struct_c (((i111, i112), (i121, i122)), ((i211, i212), (i221, i222)))) p))
+  POST [ tvoid ]
+            `(data_at Ews t_struct_c
+               (repinj t_struct_c (((i111, i112), (i121, i122)),
+                          ((Int.add i122 (Int.repr 4), Int.add i121 (Int.repr 3)),
+                           (Int.add i112 (Int.repr 2), Int.add i111 (Int.repr 1))))) p).
+
 (* The following specs are not in super canonical form. *)
 Definition get_spec2 :=
  DECLARE _get
@@ -66,32 +88,65 @@ Definition set_spec2 :=
 Definition Vprog : varspecs := (_p, t_struct_c)::nil.
 
 Definition Gprog : funspecs := 
-    get_spec::set_spec::nil.
+    get_spec::set_spec::multi_command_spec::nil.
 
-Lemma body_get:  semax_body Vprog Gprog f_get get_spec.
+Require Import Timing.
+Clear Timing Profile.
+
+Lemma body_multi_command: semax_body Vprog Gprog f_multi_command multi_command_spec.
 Proof.
- start_function.
-
-  forward.
-forward.
-cancel.
+  start_function.
+start_timer "Folded".
+  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  simpl upd_reptype.
+  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  simpl upd_reptype.
+  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  simpl upd_reptype.
+  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  simpl upd_reptype.
+  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  simpl upd_reptype.
+stop_timer "Folded".
+  forward.forward. (* return *)
 Qed.
 
-Lemma body_get':  semax_body Vprog Gprog f_get get_spec.
+Lemma body_multi_command2: semax_body Vprog Gprog f_multi_command multi_command_spec.
 Proof.
- start_function.
-name i _i.
-unfold_data_at 1%nat.
-forward.
-forward.
-unfold_data_at 1%nat.
-cancel.
+  start_function.
+  unfold_data_at 1%nat.
+  unfold_field_at 1%nat.
+  unfold_field_at 3%nat.
+  unfold_field_at 1%nat.
+  unfold_field_at 3%nat.
+  unfold_field_at 5%nat.
+  unfold_field_at 7%nat.
+start_timer "Unfolded".
+  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  simpl upd_reptype.
+  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  simpl upd_reptype.
+  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  simpl upd_reptype.
+  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  simpl upd_reptype.
+stop_timer "Unfolded".
+  forward.forward. (* return *)
+  unfold_data_at 1%nat.
+  unfold_field_at 9%nat.
+  unfold_field_at 11%nat.
+  unfold_field_at 9%nat.
+  unfold_field_at 11%nat.
+  unfold_field_at 13%nat.
+  unfold_field_at 15%nat.
+  entailer!.
 Qed.
 
-Lemma body_set:  semax_body Vprog Gprog f_set set_spec.
-Proof.
-start_function.
-name i_ _i.
-forward.
-forward.
-Qed.
+Print Timing Profile.

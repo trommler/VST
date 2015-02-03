@@ -134,6 +134,7 @@ VFILES:=app_lemmas.v\
   symexe.v\
   typ_eq.v\
   types.v\
+  verif_sha_bdo7.v\
   update_tycon.v
 
 -include $(addsuffix .d,$(VFILES))

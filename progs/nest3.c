@@ -13,3 +13,17 @@ int get(void) {
 void set(int i) {
   p.z2.y2.x2 = i;
 }
+
+void multi_command(void) {
+  int i;
+  i = p.z1.y1.x1;
+  p.z2.y2.x2 = i + 1;
+  i = p.z1.y1.x2;
+  p.z2.y2.x1 = i + 2;
+  i = p.z1.y2.x1;
+  p.z2.y1.x2 = i + 3;
+  i = p.z1.y2.x2;
+  p.z2.y1.x1 = i + 4;
+}
+
+

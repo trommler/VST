@@ -6,7 +6,7 @@ Definition _z1 : ident := 40%positive.
 Definition ___builtin_read32_reversed : ident := 32%positive.
 Definition ___compcert_va_int32 : ident := 16%positive.
 Definition _struct_b : ident := 38%positive.
-Definition _main : ident := 46%positive.
+Definition _multi_command : ident := 46%positive.
 Definition ___builtin_fsqrt : ident := 24%positive.
 Definition ___builtin_clz : ident := 22%positive.
 Definition ___compcert_va_int64 : ident := 17%positive.
@@ -14,6 +14,7 @@ Definition ___builtin_memcpy_aligned : ident := 8%positive.
 Definition ___builtin_subl : ident := 5%positive.
 Definition _i : ident := 43%positive.
 Definition ___builtin_va_start : ident := 12%positive.
+Definition _main : ident := 47%positive.
 Definition ___builtin_annot_intval : ident := 10%positive.
 Definition _get : ident := 44%positive.
 Definition ___builtin_negl : ident := 3%positive.
@@ -109,6 +110,61 @@ Definition f_set := {|
   (Efield
     (Efield (Efield (Evar _p t_struct_c) _z2 t_struct_b) _y2 t_struct_a) _x2
     tint) (Etempvar _i tint))
+|}.
+
+Definition f_multi_command := {|
+  fn_return := tvoid;
+  fn_callconv := cc_default;
+  fn_params := nil;
+  fn_vars := nil;
+  fn_temps := ((_i, tint) :: nil);
+  fn_body :=
+(Ssequence
+  (Sset _i
+    (Efield
+      (Efield (Efield (Evar _p t_struct_c) _z1 t_struct_b) _y1 t_struct_a)
+      _x1 tint))
+  (Ssequence
+    (Sassign
+      (Efield
+        (Efield (Efield (Evar _p t_struct_c) _z2 t_struct_b) _y2 t_struct_a)
+        _x2 tint)
+      (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))
+    (Ssequence
+      (Sset _i
+        (Efield
+          (Efield (Efield (Evar _p t_struct_c) _z1 t_struct_b) _y1
+            t_struct_a) _x2 tint))
+      (Ssequence
+        (Sassign
+          (Efield
+            (Efield (Efield (Evar _p t_struct_c) _z2 t_struct_b) _y2
+              t_struct_a) _x1 tint)
+          (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 2) tint)
+            tint))
+        (Ssequence
+          (Sset _i
+            (Efield
+              (Efield (Efield (Evar _p t_struct_c) _z1 t_struct_b) _y2
+                t_struct_a) _x1 tint))
+          (Ssequence
+            (Sassign
+              (Efield
+                (Efield (Efield (Evar _p t_struct_c) _z2 t_struct_b) _y1
+                  t_struct_a) _x2 tint)
+              (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 3) tint)
+                tint))
+            (Ssequence
+              (Sset _i
+                (Efield
+                  (Efield (Efield (Evar _p t_struct_c) _z1 t_struct_b) _y2
+                    t_struct_a) _x2 tint))
+              (Sassign
+                (Efield
+                  (Efield (Efield (Evar _p t_struct_c) _z2 t_struct_b) _y1
+                    t_struct_a) _x1 tint)
+                (Ebinop Oadd (Etempvar _i tint)
+                  (Econst_int (Int.repr 4) tint) tint)))))))))
 |}.
 
 Definition prog : Clight.program := {|
@@ -251,7 +307,8 @@ prog_defs :=
                    (mksignature (AST.Tint :: AST.Tint :: nil) None
                      cc_default)) (Tcons (tptr tuint) (Tcons tuint Tnil))
      tvoid cc_default)) :: (_p, Gvar v_p) :: (_get, Gfun(Internal f_get)) ::
- (_set, Gfun(Internal f_set)) :: nil);
+ (_set, Gfun(Internal f_set)) ::
+ (_multi_command, Gfun(Internal f_multi_command)) :: nil);
 prog_main := _main
 |}.
 
