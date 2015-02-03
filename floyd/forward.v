@@ -1659,10 +1659,7 @@ Ltac sc_try_instantiate P Q R0 Delta e gfs tts p sh t_root gfs0 v n N H SH GFS T
        try unfold field_at_;
        generalize V;
        intro;
-       solve [
-         first [apply remove_PROP_LOCAL_left'; apply derives_refl
-               | entailer!; cancel]
-       ]
+       solve [(apply remove_PROP_LOCAL_left'; apply derives_refl)]
       | pose N as n ].
 
 Ltac sc_new_instantiate SE P Q R Rnow Delta e gfs tts lr p sh t_root gfs0 v n N H H_LEGAL:=
@@ -1962,9 +1959,9 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     [reflexivity | reflexivity | reflexivity
     | reflexivity | exact Heq | exact HLE | exact H_Denote 
     | exact H | reflexivity
-    | unfold tc_efield; try solve [entailer!]; try (clear Heq HLE H_Denote H H_LEGAL;
+    | unfold tc_efield; (*try solve [entailer!];*) try (clear Heq HLE H_Denote H H_LEGAL;
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n; simpl app; simpl typeof)
-    | solve_legal_nested_field_in_entailment; try clear Heq HLE H_Denote H H_LEGAL;
+    | (*solve_legal_nested_field_in_entailment;*) try clear Heq HLE H_Denote H H_LEGAL;
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n]
 
 | SE := @abbreviate type_id_env.type_id_env _ 
@@ -2026,9 +2023,9 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     [reflexivity | reflexivity | reflexivity
     | reflexivity | exact Heq | exact HLE | exact H_Denote 
     | exact H | reflexivity
-    | unfold tc_efield; try solve [entailer!]; try (clear Heq HLE H_Denote H H_LEGAL;
+    | unfold tc_efield; (*try solve [entailer!];*) try (clear Heq HLE H_Denote H H_LEGAL;
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n; simpl app; simpl typeof)
-    | solve_legal_nested_field_in_entailment; try clear Heq HLE H_Denote H H_LEGAL;
+    | (*solve_legal_nested_field_in_entailment;*) try clear Heq HLE H_Denote H H_LEGAL;
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n]
 
  | |- _ => eapply semax_cast_load_37';
@@ -2205,9 +2202,9 @@ match goal with
         [reflexivity | reflexivity | reflexivity
         | reflexivity | exact Heq | exact HLE
         | exact HRE | exact H_Denote | exact H | auto
-        | unfold tc_efield; try solve[entailer!]; try (clear Heq HLE HRE H_Denote H H_LEGAL;
+        | unfold tc_efield; (*try solve[entailer!];*) try (clear Heq HLE HRE H_Denote H H_LEGAL;
           subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n; simpl app; simpl typeof)
-        | solve_legal_nested_field_in_entailment; try clear Heq HLE HRE H_Denote H H_LEGAL;
+        | (*solve_legal_nested_field_in_entailment;*) try clear Heq HLE HRE H_Denote H H_LEGAL;
           subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n ]
       | appcontext [field_at_] =>
         eapply (semax_SC_field_store Delta sh SE n)
@@ -2215,9 +2212,9 @@ match goal with
         [reflexivity | reflexivity | reflexivity
         | reflexivity | exact Heq | exact HLE
         | exact HRE | exact H_Denote | exact H | auto 
-        | unfold tc_efield; try solve[entailer!]; try (clear Heq HLE HRE H_Denote H H_LEGAL;
+        | unfold tc_efield; (*try solve[entailer!];*) try (clear Heq HLE HRE H_Denote H H_LEGAL;
           subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n; simpl app; simpl typeof)
-        | solve_legal_nested_field_in_entailment; try clear Heq HLE HRE H_Denote H H_LEGAL;
+        | (*solve_legal_nested_field_in_entailment;*) try clear Heq HLE HRE H_Denote H H_LEGAL;
           subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n ]
       | _ =>
         eapply semax_post'; [ |
@@ -2236,9 +2233,9 @@ match goal with
                subst MM;
                apply derives_refl
           end
-        | unfold tc_efield; try solve[entailer!]; try (clear Heq HLE HRE H_Denote H H_LEGAL;
+        | unfold tc_efield; (*try solve[entailer!];*) try (clear Heq HLE HRE H_Denote H H_LEGAL;
           subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n; simpl app; simpl typeof)
-        | solve_legal_nested_field_in_entailment; try clear Heq HLE HRE H_Denote H H_LEGAL;
+        | (*solve_legal_nested_field_in_entailment;*) try clear Heq HLE HRE H_Denote H H_LEGAL;
           subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n ]
       end
     end
