@@ -170,6 +170,7 @@ intros.
 unfold SYMEXE_STEP.
 apply Then.THEN_sound; [apply INSTANTIATE_sound |].
 apply runOnGoals_sound.
+apply Then.THEN_sound.
 eapply AT_GOAL_sound.
 intros.
 destruct (get_arguments e);
@@ -200,6 +201,7 @@ repeat match goal with
     unfold ExprDsimul.ExprDenote.exprT_App.
     simpl.
     unfold exprT_Inj. apply semax_skip.
++ admit.
 Qed.
 
 Theorem SYMEXE_sound : rtac_sound (SYMEXE_TAC_n n tbl).
@@ -366,14 +368,109 @@ forall post v sh,  (semax
      (normal_ret_assert  post)).
 
 
-Goal test_semax 1 1 0 0 0.
-cbv [ test_semax lots_temps lots_temps' PTree.empty
+Definition sets := 1%nat.
+Definition temps_tycon := sets.
+Definition temps_local := 0%nat.
+Definition vars_local := temps_local.
+Definition seps := vars_local.
+
+Clear Timing Profile.
+Ltac forward := start_timer "LTac"; repeat forward.forward; stop_timer "LTac".
+Goal test_semax sets temps_tycon temps_local vars_local seps.
+cbv [ sets temps_tycon temps_local vars_local seps
+      test_semax lots_temps lots_temps' PTree.empty
+      lots_of_sets lots_of_sets' lots_data_at Pos.succ PTree.set
+      lots_locals lots_locals' lots_vars lots_vars' pred]. 
+cbv [localD LocalD assertD PTree.fold PTree.xfold map liftx].
+intros. 
+forward.
+Abort.
+
+Goal test_semax sets temps_tycon temps_local vars_local seps.
+cbv [ sets temps_tycon temps_local vars_local seps
+      test_semax lots_temps lots_temps' PTree.empty
       lots_of_sets lots_of_sets' lots_data_at Pos.succ PTree.set
       lots_locals lots_locals' lots_vars lots_vars' pred]. 
 intros. 
-Clear Timing Profile.
 rforward.
+Abort.
+
+Goal test_semax sets temps_tycon temps_local vars_local seps.
+cbv [ sets temps_tycon temps_local vars_local seps
+      test_semax lots_temps lots_temps' PTree.empty
+      lots_of_sets lots_of_sets' lots_data_at Pos.succ PTree.set
+      lots_locals lots_locals' lots_vars lots_vars' pred]. 
+intros. 
+rforward.
+Abort.
+
+Goal test_semax sets temps_tycon temps_local vars_local seps.
+cbv [ sets temps_tycon temps_local vars_local seps
+      test_semax lots_temps lots_temps' PTree.empty
+      lots_of_sets lots_of_sets' lots_data_at Pos.succ PTree.set
+      lots_locals lots_locals' lots_vars lots_vars' pred]. 
+intros. 
+rforward.
+Abort.
+
+Goal test_semax sets temps_tycon temps_local vars_local seps.
+cbv [ sets temps_tycon temps_local vars_local seps
+      test_semax lots_temps lots_temps' PTree.empty
+      lots_of_sets lots_of_sets' lots_data_at Pos.succ PTree.set
+      lots_locals lots_locals' lots_vars lots_vars' pred]. 
+intros. 
+rforward.
+Abort.
+
+Goal test_semax sets temps_tycon temps_local vars_local seps.
+cbv [ sets temps_tycon temps_local vars_local seps
+      test_semax lots_temps lots_temps' PTree.empty
+      lots_of_sets lots_of_sets' lots_data_at Pos.succ PTree.set
+      lots_locals lots_locals' lots_vars lots_vars' pred]. 
+intros. 
+rforward.
+Abort.
+
+Goal test_semax sets temps_tycon temps_local vars_local seps.
+cbv [ sets temps_tycon temps_local vars_local seps
+      test_semax lots_temps lots_temps' PTree.empty
+      lots_of_sets lots_of_sets' lots_data_at Pos.succ PTree.set
+      lots_locals lots_locals' lots_vars lots_vars' pred]. 
+intros. 
+rforward.
+Abort.
+
+Goal test_semax sets temps_tycon temps_local vars_local seps.
+cbv [ sets temps_tycon temps_local vars_local seps
+      test_semax lots_temps lots_temps' PTree.empty
+      lots_of_sets lots_of_sets' lots_data_at Pos.succ PTree.set
+      lots_locals lots_locals' lots_vars lots_vars' pred]. 
+intros. 
+rforward.
+Abort.
+
+Goal test_semax sets temps_tycon temps_local vars_local seps.
+cbv [ sets temps_tycon temps_local vars_local seps
+      test_semax lots_temps lots_temps' PTree.empty
+      lots_of_sets lots_of_sets' lots_data_at Pos.succ PTree.set
+      lots_locals lots_locals' lots_vars lots_vars' pred]. 
+intros. 
+rforward.
+Abort.
+
+Goal test_semax sets temps_tycon temps_local vars_local seps.
+cbv [ sets temps_tycon temps_local vars_local seps
+      test_semax lots_temps lots_temps' PTree.empty
+      lots_of_sets lots_of_sets' lots_data_at Pos.succ PTree.set
+      lots_locals lots_locals' lots_vars lots_vars' pred]. 
+intros. 
+rforward.
+Abort.
+
 Print Timing Profile. 
+
+
+
 
 (* 02 match_tactic:	(total:0.003328, mean:0.003328, runs:1, sigma2:0.000000)
 03 reification:	(total:1.787002, mean:1.787002, runs:1, sigma2:0.000000)
@@ -388,8 +485,6 @@ Print Timing Profile.
   12 exact:	(total:0.326034, mean:0.326034, runs:1, sigma2:0.000000)
 13 VM_CAST:	(total:0.255638, mean:0.255638, runs:1, sigma2:0.000000)
      total:	(total:4.307944, mean:4.307944, runs:1, sigma2:0.000000) *)
-
-Show Proof.
 
 (* for a small goal:
 (fun (post : environ -> mpred) (v : val) (sh : Share.t) =>
@@ -622,7 +717,7 @@ Show Proof.
                            (Var 0%nat)))
                      (App (Inj (inl (inl (inl 2%positive)))) (Var 0%nat)))))))
     H) ?139) *)
-
+(*
 admit.
 Time Qed. (*109 seconds with change for 100 vars
             123 seconds without change for 100 vars
@@ -849,3 +944,4 @@ rforward.
 Abort.
 *)
 
+*)

@@ -473,7 +473,7 @@ Definition FORWARD_STORE Struct_env Delta Pre s :=
 Definition SYMEXE_STEP Struct_env
 : rtac typ (expr typ func)  :=
   THEN' (INSTANTIATE typ func)
-  (AT_GOAL
+  (Then.THEN (AT_GOAL
     (fun c s e => 
          match (get_arguments e) with
          | (Some Delta, Some Pre, Some s) =>  
@@ -486,7 +486,7 @@ Definition SYMEXE_STEP Struct_env
            | _ => FAIL
            end
          | _ => FAIL
-         end)).
+         end)) (@RTac.Minify.MINIFY typ (expr typ func) _)).
 
 Existing Instance func_defs.Expr_ok_fs.
 
