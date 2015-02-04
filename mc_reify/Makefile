@@ -134,7 +134,7 @@ VFILES:=app_lemmas.v\
   symexe.v\
   typ_eq.v\
   types.v\
-  verif_nest3.v\
+  verif_nest3_bm.v\
   verif_sha_bdo7.v\
   update_tycon.v
 

@@ -142,7 +142,7 @@ Clear Timing Profile.
 Lemma body_multi_command: semax_body Vprog Gprog f_multi_command multi_command_spec.
 Proof.
   start_function.
-start_timer "08a Folded Ltac".
+start_timer "T08a Folded Ltac".
   forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
   simpl upd_reptype.
   forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
@@ -156,7 +156,7 @@ start_timer "08a Folded Ltac".
   forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
   forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
   simpl upd_reptype.
-stop_timer "08a Folded Ltac".
+stop_timer "T08a Folded Ltac".
   forward.forward. (* return *)
 Qed.
 
@@ -170,7 +170,7 @@ Proof.
   unfold_field_at 3%nat.
   unfold_field_at 5%nat.
   unfold_field_at 7%nat.
-start_timer "08a Unfolded Ltac".
+start_timer "T08a Unfolded Ltac".
   forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
   forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
   simpl upd_reptype.
@@ -183,7 +183,7 @@ start_timer "08a Unfolded Ltac".
   forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
   forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
   simpl upd_reptype.
-stop_timer "08a Unfolded Ltac".
+stop_timer "T08a Unfolded Ltac".
   forward.forward. (* return *)
   unfold_data_at 1%nat.
   unfold_field_at 9%nat.
@@ -212,7 +212,7 @@ Proof.
   unfold_field_at 11%nat.
   unfold_field_at 13%nat.
   unfold_field_at 15%nat.
-start_timer "016 Unfolded Ltac".
+start_timer "T16 Unfolded Ltac".
   forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
   forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
   simpl upd_reptype.
@@ -225,7 +225,7 @@ start_timer "016 Unfolded Ltac".
   forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
   forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
   simpl upd_reptype.
-stop_timer "016 Unfolded Ltac".
+stop_timer "T16 Unfolded Ltac".
   forward.forward. (* return *)
   unfold_data_at 1%nat.
   unfold_data_at 1%nat.
@@ -247,7 +247,7 @@ Qed.
 Lemma body_multi_command_s: semax_body Vprog Gprog f_multi_command_s multi_command_s_spec.
 Proof.
   start_function.
-start_timer "08b Unfolded Ltac".
+start_timer "T08b Unfolded Ltac".
   forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
   forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
   simpl upd_reptype.
@@ -260,7 +260,7 @@ start_timer "08b Unfolded Ltac".
   forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
   forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
   simpl upd_reptype.
-stop_timer "08b Unfolded Ltac".
+stop_timer "T08b Unfolded Ltac".
   forward.forward. (* return *)
   cancel.
 Qed.
@@ -295,6 +295,8 @@ Lemma body_multi_command_s2: semax_body Vprog nil f_multi_command_s multi_comman
 Proof.
   start_function.
 
+start_timer "T08b Unfolded Rtac".
+
 unfold abbreviate in Delta, (*MORE_COMMANDS,*) POSTCONDITION.
 subst Delta (*MORE_COMMANDS*) POSTCONDITION.
 ensure_normal_ret_assert.
@@ -307,14 +309,25 @@ unfold PTree.set, PTree.prev, tarray, tint; simpl.  repeat split.
 
 rforward.
 
-repeat eexists;
-repeat (split; repeat eexists).
+repeat split.
 + intros; entailer!.
   solve_legal_nested_field.
-+ simpl nth_error. reflexivity.
-+ entailer!.
++ intros; entailer!.
   solve_legal_nested_field.
-
-start_timer "08b Unfolded Rtac".
-
++ intros; entailer!.
+  solve_legal_nested_field.
++ intros; entailer!.
+  solve_legal_nested_field.
++ intros; entailer!.
+  solve_legal_nested_field.
++ intros; entailer!.
+  solve_legal_nested_field.
++ intros; entailer!.
+  solve_legal_nested_field.
++ intros; entailer!.
+  solve_legal_nested_field.
++ 
+stop_timer "T08b Unfolded Rtac".
+admit.
+Qed.
 Print Timing Profile.
