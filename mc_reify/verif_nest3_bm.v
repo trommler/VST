@@ -137,29 +137,38 @@ Definition Gprog : funspecs :=
     multi_command_s_spec::multi_command_spec::nil.
 
 Require Import Timing.
+
+Ltac lforward :=
+start_timer "Forward";
+forward.forward;
+stop_timer "Forward".
+
 Clear Timing Profile.
 
 Lemma body_multi_command: semax_body Vprog Gprog f_multi_command multi_command_spec.
 Proof.
   start_function.
 start_timer "T08a Folded Ltac".
-  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  lforward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  lforward; [entailer! | solve_legal_nested_field_in_entailment' |].
   simpl upd_reptype.
-  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  lforward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  lforward; [entailer! | solve_legal_nested_field_in_entailment' |].
   simpl upd_reptype.
-  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
-  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  lforward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  lforward; [entailer! | solve_legal_nested_field_in_entailment' |].
   simpl upd_reptype.
-  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
-  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
-  simpl upd_reptype.
-  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
-  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  lforward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  lforward; [entailer! | solve_legal_nested_field_in_entailment' |].
   simpl upd_reptype.
 stop_timer "T08a Folded Ltac".
   forward.forward. (* return *)
 Qed.
 
+Print Timing Profile.
+
+
+(*
 Lemma body_multi_command2: semax_body Vprog Gprog f_multi_command multi_command_spec.
 Proof.
   start_function.
@@ -243,27 +252,31 @@ stop_timer "T16 Unfolded Ltac".
   unfold_field_at 31%nat.
   cancel.
 Qed.
+*)
 
+Clear Timing Profile.
 Lemma body_multi_command_s: semax_body Vprog Gprog f_multi_command_s multi_command_s_spec.
 Proof.
   start_function.
 start_timer "T08b Unfolded Ltac".
-  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
-  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  lforward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  lforward; [entailer! | solve_legal_nested_field_in_entailment' |].
   simpl upd_reptype.
-  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
-  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  lforward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  lforward; [entailer! | solve_legal_nested_field_in_entailment' |].
   simpl upd_reptype.
-  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
-  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  lforward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  lforward; [entailer! | solve_legal_nested_field_in_entailment' |].
   simpl upd_reptype.
-  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
-  forward.forward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  lforward; [entailer! | solve_legal_nested_field_in_entailment' |].
+  lforward; [entailer! | solve_legal_nested_field_in_entailment' |].
   simpl upd_reptype.
 stop_timer "T08b Unfolded Ltac".
   forward.forward. (* return *)
   cancel.
 Qed.
+
+Print Timing Profile.
 
 Require Export mc_reify.symexe_soundness.
 
@@ -305,29 +318,155 @@ match goal with
 end.
 
 prepare_reify.
-unfold PTree.set, PTree.prev, tarray, tint; simpl.  repeat split.
+unfold PTree.set, PTree.prev, tarray, tint; simpl.
 
 rforward.
 
 repeat split.
-+ intros; entailer!.
-  solve_legal_nested_field.
-+ intros; entailer!.
-  solve_legal_nested_field.
-+ intros; entailer!.
-  solve_legal_nested_field.
-+ intros; entailer!.
-  solve_legal_nested_field.
-+ intros; entailer!.
-  solve_legal_nested_field.
-+ intros; entailer!.
-  solve_legal_nested_field.
-+ intros; entailer!.
-  solve_legal_nested_field.
-+ intros; entailer!.
-  solve_legal_nested_field.
++ intros.
+  apply andp_right.
+  entailer!.
+  apply prop_right. solve_legal_nested_field.
++ intros.
+  apply prop_right. solve_legal_nested_field.
++ intros.
+  apply andp_right.
+  entailer!.
+  apply prop_right. solve_legal_nested_field.
++ intros.
+  apply prop_right. solve_legal_nested_field.
++ intros.
+  apply andp_right.
+  entailer!.
+  apply prop_right. solve_legal_nested_field.
++ intros.
+  apply prop_right. solve_legal_nested_field.
++ intros.
+  apply andp_right.
+  entailer!.
+  apply prop_right. solve_legal_nested_field.
++ intros.
+  apply prop_right. solve_legal_nested_field.
 + 
 stop_timer "T08b Unfolded Rtac".
 admit.
 Qed.
 Print Timing Profile.
+
+Lemma body_multi_command4: semax_body Vprog nil f_multi_command multi_command_spec.
+Proof.
+  start_function.
+start_timer "T08a Folded Rtac".
+
+unfold abbreviate in Delta, MORE_COMMANDS, POSTCONDITION.
+subst Delta MORE_COMMANDS POSTCONDITION.
+ensure_normal_ret_assert.
+match goal with
+| |- semax _ _ _ (normal_ret_assert ?M) => set (POSTCONDITION := M)
+end.
+
+prepare_reify.
+unfold t_struct_c, t_struct_b, t_struct_a in *; simpl.
+unfold PTree.set, PTree.prev, tarray, tint; simpl.
+
+(*
+match goal with
+| |- semax ?Delta ?Pre (Ssequence (Ssequence ?A1 (Ssequence ?A2 (Ssequence ?A3 _))) _)  _ =>
+   assert (semax Delta Pre (Ssequence A1 Sskip)
+   (normal_ret_assert Pre)); [| admit]
+end.
+(*
+ 08 reduce:	(total:0.057167, mean:0.057167, runs:1, sigma2:0.000000)
+   09 cut1:	(total:0.118262, mean:0.118262, runs:1, sigma2:0.000000)
+ 10 change:	(total:0.000002, mean:0.000002, runs:1, sigma2:0.000000)
+   11 cut2:	(total:0.184445, mean:0.184445, runs:1, sigma2:0.000000)
+*)
+*)
+
+(*
+match goal with
+| |- semax ?Delta ?Pre (Ssequence (Ssequence ?A1 (Ssequence ?A2 (Ssequence ?A3 _))) _)  _ =>
+   assert (semax Delta Pre (Ssequence A1 (Ssequence A2 Sskip))
+   (normal_ret_assert Pre)); [| admit]
+end.
+(*
+ 08 reduce:	(total:0.079519, mean:0.079519, runs:1, sigma2:0.000000)
+   09 cut1:	(total:0.284411, mean:0.284411, runs:1, sigma2:0.000000)
+ 10 change:	(total:0.000001, mean:0.000001, runs:1, sigma2:0.000000)
+   11 cut2:	(total:0.307770, mean:0.307770, runs:1, sigma2:0.000000)
+*)
+*)
+
+(*
+match goal with
+| |- semax ?Delta ?Pre (Ssequence (Ssequence ?A1 (Ssequence ?A2 (Ssequence ?A3 _))) _)  _ =>
+   assert (semax Delta Pre (Ssequence A1 (Ssequence A2 (Ssequence A3 Sskip)))
+   (normal_ret_assert Pre)); [| admit]
+end.
+(*
+05 vm_compute:	(total:0.093451, mean:0.093451, runs:1, sigma2:0.000000)
+ 08 reduce:	(total:0.223416, mean:0.223416, runs:1, sigma2:0.000000)
+   09 cut1:	(total:1.312236, mean:1.312236, runs:1, sigma2:0.000000)
+ 10 change:	(total:0.000002, mean:0.000002, runs:1, sigma2:0.000000)
+   11 cut2:	(total:1.057662, mean:1.057662, runs:1, sigma2:0.000000)
+*)
+*)
+
+(*
+match goal with
+| |- semax ?Delta ?Pre (Ssequence (Ssequence ?A1 (Ssequence ?A2 (Ssequence ?A3 (Ssequence ?A4 _)))) _)  _ =>
+   assert (semax Delta Pre (Ssequence A1 (Ssequence A2 (Ssequence A3 (Ssequence A4 Sskip))))
+   (normal_ret_assert Pre)); [| admit]
+end.
+(*
+ 05 vm_compute:	(total:0.154376, mean:0.154376, runs:1, sigma2:0.000000)
+ 08 reduce:	(total:0.784162, mean:0.784162, runs:1, sigma2:0.000000)
+   09 cut1:	(total:6.706352, mean:6.706352, runs:1, sigma2:0.000000)
+ 10 change:	(total:0.000002, mean:0.000002, runs:1, sigma2:0.000000)
+   11 cut2:	(total:5.556991, mean:5.556991, runs:1, sigma2:0.000000)
+*)
+*)
+
+match goal with
+| |- semax ?Delta ?Pre (Ssequence (Ssequence ?A1 (Ssequence ?A2 (Ssequence ?A3 (Ssequence ?A4 
+         (Ssequence ?A5 (Ssequence ?A6 (Ssequence ?A7 ?A8))))))) _)  _ =>
+   assert (semax Delta Pre (Ssequence A1 (Ssequence A3 (Ssequence A5 (Ssequence A7 
+                             (Ssequence A1 (Ssequence A3 (Ssequence A5 (Ssequence A7 Sskip))))))))
+   (normal_ret_assert Pre)); [| admit]
+end.
+
+Set Printing Depth 4. 
+Clear Timing Profile.
+rforward.
+Print Timing Profile.
+
+repeat split.
++ intros.
+  apply andp_right.
+  entailer!.
+  apply prop_right. solve_legal_nested_field.
++ intros.
+  apply prop_right. solve_legal_nested_field.
++ intros.
+  apply andp_right.
+  entailer!.
+  apply prop_right. solve_legal_nested_field.
++ intros.
+  apply prop_right. solve_legal_nested_field.
++ intros.
+  apply andp_right.
+  entailer!.
+  apply prop_right. solve_legal_nested_field.
++ intros.
+  apply prop_right. solve_legal_nested_field.
++ intros.
+  apply andp_right.
+  entailer!.
+  apply prop_right. solve_legal_nested_field.
++ intros.
+  apply prop_right. solve_legal_nested_field.
++ 
+stop_timer "T08a Folded Rtac".
+admit.
+
+Qed.

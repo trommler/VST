@@ -1659,7 +1659,8 @@ Ltac sc_try_instantiate P Q R0 Delta e gfs tts p sh t_root gfs0 v n N H SH GFS T
        try unfold field_at_;
        generalize V;
        intro;
-       solve [(apply remove_PROP_LOCAL_left'; apply derives_refl)]
+       solve [first [apply remove_PROP_LOCAL_left'; apply derives_refl
+               | entailer!; cancel]]
       | pose N as n ].
 
 Ltac sc_new_instantiate SE P Q R Rnow Delta e gfs tts lr p sh t_root gfs0 v n N H H_LEGAL:=
