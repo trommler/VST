@@ -36,10 +36,10 @@ Module Type KNOT_HERED.
 
   Axiom squash_unsquash : forall k:knot, squash (unsquash k) = k.
   Axiom unsquash_squash : forall (n:nat) (f:F predicate),
-    unsquash (squash (n,f)) = (n, fmap (approx n) f).
+    unsquash (squash (n,f)) = (n, fst (fmap (approx n, approx n)) f).
 
   Axiom approx_spec : forall n p k,
-    proj1_sig (approx n p) k = (level k < n /\ proj1_sig p k).
+    (approx n p) k = (level k < n /\ p k).
 
   Axiom knot_level : forall k:knot, level k = fst (unsquash k).
 
@@ -58,21 +58,56 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
 
   Definition sinv_prod X := prod X (F X * other -> Prop).
 
-  Definition guppy_sig := (fun T:Type => T * (F T * other -> Prop) -> Prop).
-  Definition guppy_ty := sigT guppy_sig.
+  Record guppy_ty: Type := {
+    GT_type: Type;
+    GT_prop: sinv_prod GT_type -> Prop;
+    GT_func: GT_type -> sinv_prod GT_type;
+    GT_sound: forall x: GT_type, GT_prop (GT_func x)
+  }.
 
-  Definition guppy_step_ty (Z:guppy_ty) : Type :=
-    (sig (fun (x:sinv_prod (projT1 Z)) => projT2 Z x)).
+  Section Guppy_Step.
 
-  Definition guppy_step_prop (Z:guppy_ty) (xf:sinv_prod (guppy_step_ty Z)) :=
-    forall (k:F (guppy_step_ty Z)) (o:other),
-      snd xf (k,o) -> snd (proj1_sig (fst xf)) (fmap (@fst _ _ oo @proj1_sig _ _) k,o).
+    Variable Z: guppy_ty.
+   
+    Definition GS_type: Type := sig (GT_prop Z).
 
-  Definition guppy_step (Z:guppy_ty) : guppy_ty :=
-    existT guppy_sig (guppy_step_ty Z) (guppy_step_prop Z).
+    Definition backward: GS_type -> GT_type Z := fun k => fst (proj1_sig k).
 
-  Definition guppy_base : guppy_ty :=
-    existT guppy_sig unit (fun _ => True).
+    Definition forward: GT_type Z -> GS_type := fun k => exist _ (GT_func Z k) (GT_sound Z k).
+   
+    Definition GS_prop: sinv_prod GS_type -> Prop :=
+      fun (k: GS_type * (F GS_type * other -> Prop)) =>
+        let k': GT_type Z * (F (GT_type Z) * other -> Prop) := proj1_sig (fst k) in
+        forall (xf : F GS_type) (o:other),
+          let xf' : F (GT_type Z) := fst (fmap (backward, forward)) xf in
+          (snd k) (xf, o) -> (snd k') (xf', o).
+
+(*
+    Definition GS_func: GS_type -> sinv_prod GS_type :=
+      fun k =>
+        (k,
+          fun xfo: F GS_type * other =>
+            let (xf, o) := xfo in
+            let xf' : F (GT_type Z) := fst (fmap (backward, forward)) xf in
+            let p : F (GT_type Z) * other -> Prop := snd (proj1_sig k) in
+              p (xf', o)
+        ).
+
+    Lemma GS_sound: forall k: GS_type, GS_prop (GS_func k).
+    Proof. intros. unfold GS_prop, GS_func. auto. Qed.
+*)
+
+    Definition GS_func: GS_type -> sinv_prod GS_type :=
+      fun k => (k, fun _ => False).
+
+    Lemma GS_sound: forall k: GS_type, GS_prop (GS_func k).
+    Proof. intros. unfold GS_prop, GS_func. intros. inversion H. Qed.
+
+    Definition guppy_step: guppy_ty := Build_guppy_ty GS_type GS_prop GS_func GS_sound.
+
+  End Guppy_Step.
+
+  Definition guppy_base : guppy_ty := Build_guppy_ty unit (fun _ => True) (fun k => (k, fun _ => False)) (fun x => I).
 
   Fixpoint guppy (n:nat) : guppy_ty :=
     match n with
@@ -80,8 +115,14 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     | S n' => guppy_step (guppy n')
     end.
 
-  Definition sinv (n:nat) : Type := projT1 (guppy n).
-  Definition sinv_prop (n:nat) : prod (sinv n) (F (sinv n) * other -> Prop) -> Prop := projT2 (guppy n).
+  Definition sinv (n:nat) : Type := GT_type (guppy n).
+  Definition sinv_prop (n:nat) : prod (sinv n) (F (sinv n) * other -> Prop) -> Prop := GT_prop (guppy n).
+
+  Lemma fst_GT_func: forall n k, fst (GT_func (guppy n) k) = k.
+  Proof. intros. destruct n; reflexivity. Qed.
+
+  Lemma snd_GT_func: forall n k k', snd (GT_func (guppy n) k) k' = False.
+  Proof. intros. destruct n; reflexivity. Qed.
 
   Fixpoint floor (m:nat) (n:nat) (p:sinv (m+n)) : sinv n :=
     match m as m' return forall (p : sinv (m'+n)), sinv n with
@@ -91,11 +132,15 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
 
   Definition knot := { n:nat & F (sinv n) }.
 
+  Definition fmap_backward (n: nat): F (sinv (S n)) -> F (sinv n) := fst (@fmap F f_F _ _ (backward (guppy n), forward (guppy n))).
+
+  Definition fmap_forward (n: nat): F (sinv n) -> F (sinv (S n)) := snd (@fmap F f_F _ _ (backward (guppy n), forward (guppy n))).
+
   Definition k_age1 (k:knot) : option (knot) :=
     match k with
       | (existT 0 f) => None
       | (existT (S m) f) => Some
-          (existT (F oo sinv) m (fmap (@fst _ _ oo @proj1_sig _ _) f))
+          (existT (F oo sinv) m (fmap_backward m f))
     end.
 
   Definition k_age (k1 k2:knot) := k_age1 k1 = Some k2.
@@ -107,20 +152,20 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     end.
   Definition ko_age x y := ko_age1 x = Some y.
 
-
   Definition predicate := { p:knot * other -> Prop | hereditary ko_age p }.
 
   Definition app_sinv (n:nat) (p:sinv (S n)) (x:F (sinv n) * other) :=
     snd (proj1_sig p) x.
 
+
   Lemma app_sinv_age : forall n (p:sinv (S (S n))) (f:F (sinv (S n)) * other),
     app_sinv (S n) p f ->
-    app_sinv n (fst (proj1_sig p)) (fmap (@fst _ _ oo @proj1_sig _ _) (fst f), snd f).
+    app_sinv n (fst (proj1_sig p)) (fmap_backward n (fst f), snd f).
   Proof.
     intros.
     unfold app_sinv in *.
     destruct p; simpl in *; fold guppy in *.
-    apply p; auto.
+    apply g; auto.
     destruct f; auto.
   Qed.
 
@@ -147,10 +192,10 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
       simpl in *; fold guppy in *.
       cut (x = x0).
       intros.
-      revert p p0 H2 H3.
+      revert g g0 H2 H3.
       rewrite <- H0.
       intros.
-      replace p0 with p by (apply proof_irr); auto.
+      replace g0 with g by (apply proof_irr); auto.
       destruct x; destruct x0; simpl in *.
       apply injective_projections; simpl.
       apply IHn; auto.
@@ -165,7 +210,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
       induction n.
       exists tt; simpl; exact I.
       assert (HX:
-        projT2 (guppy n)
+        GT_prop (guppy n)
         (projT1 IHn, fun v : F (sinv n) * other => Q (existT (F oo sinv) n (fst v),snd v))).
       destruct n.
       simpl; exact I.
@@ -179,7 +224,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
       eapply HQ.
       2: apply H1.
       simpl; reflexivity.
-      exists ((exist (fun x => projT2 (guppy n) x) ( projT1 IHn, fun v:F (sinv n) * other => Q (existT (F oo sinv) n (fst v),snd v) ) HX)).
+      exists ((exist (fun x => GT_prop (guppy n) x) ( projT1 IHn, fun v:F (sinv n) * other => Q (existT (F oo sinv) n (fst v),snd v) ) HX)).
       simpl; split.
       destruct IHn; auto.
       unfold app_sinv; simpl; intros.
@@ -237,18 +282,20 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
   Proof.
     intros.
     hnf; intros k k'; intros.
-    simpl in H.
+    unfold ko_age in H.
     destruct k.
-    destruct k. destruct x.
+    destruct k.
+    destruct x.
     discriminate.
     destruct k' as [k' o'].
     assert (o = o').
-    hnf in H.
-    simpl in H.
-    inv H. auto.
+    Focus 1. {
+      hnf in H.
+      simpl in H.
+      inv H. auto.
+    } Unfocus.
     subst o'.
-    replace k' with
-      (existT (F oo sinv) x (fmap (@fst _ _ oo @proj1_sig _ _ ) f)).
+    replace k' with (existT (F oo sinv) x (fmap_backward x f)).
     2: inversion H; auto.
     clear H.
     case_eq (decompose_nat x n); intros.
@@ -362,15 +409,9 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     elimtype False; omega.
   Qed.
 
-  Lemma stratify_unstratify : forall n p H,
-    proj1_sig (stratify (unstratify n p) H n) = p.
+  Lemma stratifies_unstratify: forall n (p: sinv n), stratifies (unstratify n p) n p.
   Proof.
-    intros.
-    apply stratifies_unique with (unstratify n p).
-    destruct (stratify _ H n).
-    simpl; auto.
-    clear H.
-    revert p; induction n.
+    induction n.
     simpl; intros; auto.
     intros.
     simpl; split.
@@ -394,6 +435,15 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     elimtype False; omega.
   Qed.
 
+  Lemma stratify_unstratify : forall n p H,
+    proj1_sig (stratify (unstratify n p) H n) = p.
+  Proof.
+    intros.
+    apply stratifies_unique with (unstratify n p).
+    + destruct (stratify _ H n).
+      simpl; auto.
+    + apply stratifies_unstratify.
+  Qed.
 
   Definition strat (n:nat) (p:predicate) : sinv n :=
     proj1_sig (stratify (proj1_sig p) (proj2_sig p) n).
@@ -402,10 +452,10 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     exist (hereditary ko_age) (unstratify n p) (unstratify_hered n p).
 
   Definition squash (x:nat * F predicate) : knot :=
-    match x with (n,f) => existT (F oo sinv) n (fmap (strat n) f) end.
+    match x with (n,f) => existT (F oo sinv) n (fst (fmap (strat n, unstrat n)) f) end.
 
   Definition unsquash (k:knot) : nat * F predicate :=
-    match k with existT n f => (n, fmap (unstrat n) f) end.
+    match k with existT n f => (n, fst (fmap (unstrat n, strat n)) f) end.
 
   Definition level (x:knot) : nat := fst (unsquash x).
   Program Definition approx (n:nat) (p:predicate) : predicate := 
@@ -484,28 +534,73 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
   Proof.
     intros.
     destruct k; simpl.
-    f_equal.
-    change ((fmap (strat x) oo fmap (unstrat x)) f = f).
-    rewrite fmap_comp.
+    rewrite fmap_app.
+    unfold double_compose.
     rewrite strat_unstrat.
     rewrite fmap_id.
-    auto.
+    reflexivity.
   Qed.
 
   Lemma unsquash_squash : forall n f,
-    unsquash (squash (n,f)) = (n, fmap (approx n) f).
+    unsquash (squash (n,f)) = (n, fst (fmap (approx n, approx n)) f).
   Proof.
     intros.
     unfold unsquash, squash.
-    f_equal.
-    change ((fmap (unstrat n) oo fmap (strat n)) f = fmap (approx n) f).
-    rewrite fmap_comp.
+    rewrite fmap_app.
+    unfold double_compose.
     rewrite unstrat_strat.
-    auto.
+    reflexivity.
   Qed.
 
+  Lemma unstrat_strat_Sx : forall x,
+    forward (guppy x) = strat (S x) oo unstrat x.
+  Proof.
+    intros.
+    extensionality k.
+    change (sinv x) in k.
+    unfold compose.
+    unfold strat, unstrat.
+    simpl.
+    change (GS_type (guppy x)) with (sinv (S x)).
+    apply stratifies_unique with (unstratify (S x) (forward _ k)).
+    + simpl.
+      destruct (decompose_nat x (S x)); [| exfalso; omega].
+      destruct s.
+      assert (x0 = 0) by omega; subst; simpl.
+      rewrite <- eq_rect_eq; clear e.
+      simpl.
+      split; [| intros; tauto].
+      eapply (stratifies_unstratify_more x 0 1 ).
+      1: reflexivity.
+      simpl.
+      apply stratifies_unstratify.
+    + destruct ((stratify (unstratify x k) (unstratify_hered x k) (S x))).
+      simpl.
+      destruct (decompose_nat x (S x)); [| exfalso; omega].
+      destruct s0.
+      assert (x1 = 0) by omega; subst; simpl.
+      rewrite <- eq_rect_eq; clear e.
+      cut (x0 = forward _ k); intros.
+      - subst x0.
+        split; [| intros; tauto].
+        eapply (stratifies_unstratify_more x 0 1).
+        1: simpl; reflexivity.
+        simpl.
+        apply stratifies_unstratify.
+      - eapply stratifies_unique.
+        apply s.
+        simpl.
+        split.
+        * rewrite fst_GT_func.
+          apply stratifies_unstratify.
+        * intros.
+          destruct (decompose_nat x x) as [[? ?] |]; [exfalso; omega |].
+          rewrite snd_GT_func.
+          tauto.
+  Qed.
+    
   Lemma strat_unstrat_Sx : forall x,
-    @fst _ _ oo @proj1_sig _ _ = strat x oo unstrat (S x).
+    backward (guppy x) = strat x oo unstrat (S x).
   Proof.
     intros.
     extensionality k.
@@ -514,57 +609,63 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     unfold strat, unstrat.
     simpl.
     apply stratifies_unique with (unstratify x (fst (proj1_sig k))).
-    revert k; induction x; simpl; auto.
-    intros.
-    split.
-    eapply (stratifies_unstratify_more x 0 1 ).
-    simpl; reflexivity.
-    simpl.
-    apply IHx.
-    intros.
-    destruct (decompose_nat x (S x)).
-    destruct s.
-    assert (x0 = 0) by omega; subst x0.
-    simpl in *.
-    replace e with (refl_equal (S x)) by apply proof_irr; simpl.
-    tauto.
-    elimtype False; omega.
-    destruct (stratify (unstratify (S x) k)
-      (unstratify_hered (S x) k) x).
-    simpl; auto.
-    cut (x0 = (fst (proj1_sig k))); intros.
-    subst x0.
-    eapply (stratifies_unstratify_more x 1 0).
-    simpl; reflexivity.
-    simpl; auto.
-    eapply stratifies_unique.
-    apply s.
-    eapply (stratifies_unstratify_more x 0 1).
-    simpl; reflexivity.
-    simpl.
-    generalize (fst (proj1_sig k) : sinv x).
-    clear.
-    induction x; simpl; intuition.
-    eapply (stratifies_unstratify_more x 0 1).
-    simpl; reflexivity.
-    simpl.
-    apply IHx.
-    destruct (decompose_nat x (S x)).
-    destruct s0.
-    assert (x0 = 0) by omega; subst.
-    simpl in *.
-    replace e with (refl_equal (S x)); simpl; auto.
-    apply proof_irr.
-    omega.
-    destruct (decompose_nat x (S x)).
-    destruct s0.
-    assert (x0 = 0) by omega; subst.
-    simpl in *.
-    replace e with (refl_equal (S x)) in H; simpl; auto.
-    apply proof_irr.
-    elim H.
+    + revert k; induction x; simpl; auto.
+      intros.
+      split.
+      - eapply (stratifies_unstratify_more x 0 1 ).
+        1: simpl; reflexivity.
+        simpl.
+        apply IHx.
+      - intros.
+        destruct (decompose_nat x (S x)).
+        * destruct s.
+          assert (x0 = 0) by omega; subst x0.
+          simpl in *.
+          replace e with (refl_equal (S x)) by apply proof_irr; simpl.
+          tauto.
+        * elimtype False; omega.
+    + destruct (stratify (unstratify (S x) k) (unstratify_hered (S x) k) x).
+      1: simpl; auto.
+      cut (x0 = (fst (proj1_sig k))); intros.
+      - subst x0.
+        eapply (stratifies_unstratify_more x 1 0).
+        1: simpl; reflexivity.
+        simpl; auto.
+      - eapply stratifies_unique.
+        apply s.
+        eapply (stratifies_unstratify_more x 0 1).
+        1: simpl; reflexivity.
+        simpl.
+        generalize (fst (proj1_sig k) : sinv x).
+        clear.
+        induction x; simpl; intuition.
+        * eapply (stratifies_unstratify_more x 0 1).
+          1: simpl; reflexivity.
+          simpl.
+          apply IHx.
+        * destruct (decompose_nat x (S x)); [| omega].
+          destruct s0.
+          assert (x0 = 0) by omega; subst.
+          simpl in *.
+          replace e with (refl_equal (S x)); simpl; auto.
+          apply proof_irr.
+        * destruct (decompose_nat x (S x)); [| elim H].
+          destruct s0.
+          assert (x0 = 0) by omega; subst.
+          simpl in *.
+          replace e with (refl_equal (S x)) in H; simpl; auto.
+          apply proof_irr.
   Qed.
 
+  Lemma double_compose_strat_unstrat_Sx : forall x,
+    (backward (guppy x), forward (guppy x)) = (strat x, unstrat x) oooo (unstrat (S x), strat (S x)).
+  Proof.
+    intros.
+    simpl.
+    rewrite strat_unstrat_Sx, unstrat_strat_Sx.
+    auto.
+  Qed.
+  
   Lemma unsquash_inj : forall k k',
     unsquash k = unsquash k' -> k = k'.
   Proof.
@@ -588,15 +689,9 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     destruct x; auto.
     inv H.
     simpl.
-    f_equal.
-    f_equal.
-    change (fmap (strat x) (fmap (unstrat (S x)) f))
-      with ((fmap (strat x) oo fmap (unstrat (S x))) f).
-    rewrite fmap_comp.
-    simpl.
-    f_equal.
-    symmetry.
-    apply (strat_unstrat_Sx x).
+    rewrite fmap_app.
+    rewrite <- (double_compose_strat_unstrat_Sx x).
+    reflexivity.
 
     simpl in H.
     destruct k.
@@ -605,10 +700,8 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     inv H.
     hnf; simpl.
     unfold k_age1.
-    f_equal.
-    f_equal.
-    rewrite strat_unstrat_Sx.
-    rewrite <- fmap_comp.
+    rewrite fmap_app.
+    rewrite <- (double_compose_strat_unstrat_Sx x).
     auto.
   Qed.
 
@@ -618,41 +711,47 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
   }.
   Next Obligation.
     econstructor.
-    (* unage *)
-    intros.
-    case_eq (unsquash x'); intros.
-    exists (squash (S n, f)). 
-    rewrite knot_age_age1.
-    rewrite unsquash_squash.
-    f_equal.
-    apply unsquash_inj.
-    rewrite unsquash_squash.
-    rewrite H.
-    f_equal.
-    cut (f = fmap (approx n) f).
-    intros.
-    rewrite fmap_app.
-    pattern f at 2. rewrite H0.
-    f_equal.
-    extensionality p.
-    apply predicate_eq.
-    extensionality w.
-    simpl. apply prop_ext.
-    intuition.
-    generalize H; intro.
-    rewrite <- (squash_unsquash x') in H.
-    rewrite H0 in H.
-    rewrite unsquash_squash in H.
-    congruence.
-    
-    (* level 0 *)
-    intro x. destruct x; simpl.
-    destruct x; intuition; discriminate.
-    
-    (* level S *)
-    intros. destruct x; simpl in *.
-    destruct x. discriminate.
-    inv H. simpl. auto.
+    + (* unage *)
+      intros.
+      case_eq (unsquash x'); intros.
+      exists (squash (S n, f)). 
+      rewrite knot_age_age1.
+      rewrite unsquash_squash.
+      f_equal.
+      apply unsquash_inj.
+      rewrite unsquash_squash.
+      rewrite H.
+      f_equal.
+      cut (f = fst (fmap (approx n, approx n)) f).
+      - intros.
+        rewrite fmap_app.
+        pattern f at 2. rewrite H0.
+        f_equal.
+        f_equal.
+        simpl.
+        f_equal; extensionality p.
+        * apply predicate_eq.
+          extensionality w.
+          simpl. apply prop_ext.
+          intuition.
+        * apply predicate_eq.
+          extensionality w.
+          simpl. apply prop_ext.
+          intuition.
+      - generalize H; intro.
+        rewrite <- (squash_unsquash x') in H.
+        rewrite H0 in H.
+        rewrite unsquash_squash in H.
+        congruence.
+      
+    + (* level 0 *)
+      intro x. destruct x; simpl.
+      destruct x; intuition; discriminate.
+      
+    + (* level S *)
+      intros. destruct x; simpl in *.
+      destruct x. discriminate.
+      inv H. simpl. auto.
   Qed.
 
   Existing Instance ag_prod.

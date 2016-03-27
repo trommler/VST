@@ -23,6 +23,25 @@ Proof.
   intros; apply extensionality; intro x; unfold compose; auto.
 Qed.
 
+Notation "A <--> B" := (((A -> B) * (B -> A))%type) (at level 57, no associativity): type.
+
+Local Open Scope type.
+
+Definition double_compose {A B C: Type} (fg1: B <--> C) (fg2: A <--> B) : (A <--> C) :=
+  let (f1, g1) := fg1 in
+  let (f2, g2) := fg2 in
+  (f1 oo f2, g2 oo g1).
+
+Infix "oooo" := double_compose (at level 54, right associativity).
+
+Lemma double_compose_assoc (A B C D:Type) (h:C<-->D) (g:B<-->C) (f:A<-->B) :
+  (h oooo g) oooo f = h oooo g oooo f.
+Proof.
+  intros.
+  destruct f, g, h. simpl.
+  constructor.
+Qed.
+
 Definition id (A:Type) := fun x:A => x.
 
 Lemma id_unit1 : forall A B (f:A->B), f oo id A = f.

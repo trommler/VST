@@ -29,6 +29,7 @@ Set Implicit Arguments.
 
 (* Parameterized separating structures, useful for knot_prop_sa and 
     maybe for the general sa_knot. *)
+
 Class pafunctor {F: Type -> Type} (FUN: functor F){J_F: forall A, Join (F A)}
     : Type := PaFunctor
 {

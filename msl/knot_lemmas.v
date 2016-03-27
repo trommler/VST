@@ -40,7 +40,7 @@ Module Knot_Lemmas (K : KNOT).
 
   Lemma unsquash_approx : forall k n Fp,
     unsquash k = (n, Fp) ->
-    Fp = fmap (approx n) Fp.
+    Fp = fst (fmap (approx n, approx n)) Fp.
   Proof.
     intros.
     generalize H; intro.
@@ -79,7 +79,7 @@ Module Knot_Lemmas (K : KNOT).
   (* These are provided since sometimes it is tedious to break things out;
       they are not interesting except as engineering artifacts. *)
   Lemma unsquash_squash_unfolded : forall nf,
-    unsquash (squash nf) = (fst nf, fmap (approx (fst nf)) (snd nf)).
+    unsquash (squash nf) = (fst nf, fst (fmap (approx (fst nf), approx (fst nf))) (snd nf)).
   Proof.
     intros.
     destruct nf.
@@ -87,7 +87,7 @@ Module Knot_Lemmas (K : KNOT).
   Qed.
 	
   Lemma unsquash_approx_unfolded : forall k,
-    unsquash k = (fst (unsquash k), fmap (approx (fst (unsquash k))) (snd (unsquash k))).
+    unsquash k = (fst (unsquash k), fst (fmap (approx (fst (unsquash k)), approx (fst (unsquash k)))) (snd (unsquash k))).
   Proof.
     intros.
     case_eq (unsquash k); intros.
@@ -160,7 +160,7 @@ Module KnotHered_Lemmas (K : KNOT_HERED).
 
   Lemma unsquash_approx : forall k n Fp,
     unsquash k = (n, Fp) ->
-    Fp = fmap (approx n) Fp.
+    Fp = fst (fmap (approx n, approx n)) Fp.
   Proof.
     intros.
     generalize H; intro.
@@ -182,6 +182,8 @@ Module KnotHered_Lemmas (K : KNOT_HERED).
     apply predicate_eq.
     extensionality x; destruct x as [k o].
     unfold compose.
+    change (proj1_sig (approx n p) (k, o)) with (predicates_hered.app_pred (approx n p) (k, o)).
+    change (proj1_sig (approx n (approx (m + n) p)) (k, o)) with (predicates_hered.app_pred (approx n (approx (m + n) p)) (k, o)).
     repeat rewrite approx_spec.
     apply prop_ext. intuition.
   Qed.
@@ -192,14 +194,17 @@ Module KnotHered_Lemmas (K : KNOT_HERED).
     intros.
     extensionality p. apply predicate_eq.
     extensionality x; destruct x as [k o].
-    unfold compose. repeat rewrite approx_spec.
+    unfold compose.
+    change (proj1_sig (approx n p) (k, o)) with (predicates_hered.app_pred (approx n p) (k, o)).
+    change (proj1_sig (approx (m + n) (approx n p)) (k, o)) with (predicates_hered.app_pred (approx (m + n) (approx n p)) (k, o)).
+    repeat rewrite approx_spec.
     apply prop_ext. intuition.
   Qed.
 
   (* These are provided since sometimes it is tedious to break things out;
       they are not interesting except as engineering artifacts. *)
   Lemma unsquash_squash_unfolded : forall nf,
-    unsquash (squash nf) = (fst nf, fmap (approx (fst nf)) (snd nf)).
+    unsquash (squash nf) = (fst nf, fst (fmap (approx (fst nf), approx (fst nf))) (snd nf)).
   Proof.
     intros.
     destruct nf.
@@ -207,7 +212,7 @@ Module KnotHered_Lemmas (K : KNOT_HERED).
   Qed.
 	
   Lemma unsquash_approx_unfolded : forall k,
-    unsquash k = (fst (unsquash k), fmap (approx (fst (unsquash k))) (snd (unsquash k))).
+    unsquash k = (fst (unsquash k), fst (fmap (approx (fst (unsquash k)), approx (fst (unsquash k)))) (snd (unsquash k))).
   Proof.
     intros.
     case_eq (unsquash k); intros.

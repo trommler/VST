@@ -7,31 +7,33 @@ Require Import msl.base.
 
 Set Implicit Arguments.
 
+Local Open Scope type.
+
 Record functorFacts (PS : Type -> Type)
-    (fmap : forall A B (f : A -> B), PS A -> PS B) 
+    (fmap : forall A B (f : A <--> B), PS A <--> PS B)
     : Type := FunctorFacts
 {
-  ff_id : forall A, fmap _ _ (id A) = id (PS A);
-  ff_comp : forall A B C (f : B -> C) (g : A -> B), fmap _ _ f oo fmap _ _ g = fmap _ _ (f oo g)
+  ff_id : forall A, fmap _ _ (id A, id A) = (id (PS A), id (PS A));
+  ff_comp : forall A B C (f : B <--> C) (g : A <--> B), fmap _ _ f oooo fmap _ _ g = fmap _ _ (f oooo g)
 }.
 
 (* Parameterized structures *)
 Class functor (F : Type -> Type) 
                         : Type := Functor {
-  fmap : forall A B (f : A -> B), F A -> F B;
+  fmap : forall A B (f : A <--> B), F A <--> F B;
   functor_facts : functorFacts F fmap
 }.
 
-Lemma fmap_id {F} `{functor F} : forall A, fmap (id A) = id (F A).
-Proof. intros. destruct H. destruct functor_facts0. apply ff_id0. Qed.
+Lemma fmap_id {F} `{functor F} : forall A, (fmap (id A, id A)) = (id (F A), id (F A)).
+Proof. intros. destruct H. simpl. destruct functor_facts0. rewrite ff_id0. auto. Qed.
 
-Lemma fmap_comp {F} `{functor F} : forall A B C (f : B -> C) (g : A -> B),
-  fmap f oo fmap g = fmap (f oo g).
-Proof. intros. destruct H. destruct functor_facts0. apply ff_comp0. Qed.
+Lemma fmap_comp {F} `{functor F} : forall A B C (f : B <--> C) (g : A <--> B),
+  fmap f oooo fmap g = fmap (f oooo g).
+Proof. intros. destruct H. destruct functor_facts0. simpl. rewrite ff_comp0. auto. Qed.
 
-Lemma fmap_app {F} `{functor F} : forall A B C (f : B -> C) (g : A -> B) x,
-  fmap f (fmap g x) = fmap (f oo g) x.
-Proof. intros. rewrite <- fmap_comp; auto. Qed.
+Lemma fmap_app {F} `{functor F} : forall A B C (f : B <--> C) (g : A <--> B) x,
+  fst (fmap f) (fst (fmap g) x) = fst (fmap (f oooo g)) x.
+Proof. intros. rewrite <- fmap_comp; destruct (fmap f), (fmap g); auto. Qed.
 
 (* GENERATORS *)
 
@@ -39,8 +41,8 @@ Section ConstFunctor.
   Variable T : Type.
 
   Definition fconst (A : Type) : Type := T.
-  Definition fconst_fmap (A B : Type) (f : A -> B) (fA : fconst A) : fconst B :=
-    fA.
+  Definition fconst_fmap (A B : Type) (f : A <--> B): fconst A <--> fconst B :=
+    (id _, id _).
 
   Lemma ff_const : functorFacts fconst fconst_fmap.
   Proof with auto.
@@ -53,7 +55,7 @@ End ConstFunctor.
 
 Section IdentityFunctor.
   Definition fidentity (A : Type) : Type := A.
-  Definition fidentity_fmap (A B : Type) (f : A -> B) : fidentity A -> fidentity B := 
+  Definition fidentity_fmap (A B : Type) (f : A <--> B) : fidentity A <--> fidentity B := 
     f.
   
   Lemma ff_identity : functorFacts fidentity fidentity_fmap.
@@ -72,18 +74,18 @@ Section PairFunctor.
   Variable fF2 : functor F2.
   
   Definition fpair (A : Type) : Type := (F1 A * F2 A)%type.
-  Definition fpair_fmap (A B : Type) (f : A -> B) (pA : fpair A) : fpair B :=
-    match pA with (p1, p2) => (fmap f p1, fmap f p2) end.
+  Definition fpair_fmap (A B : Type) (f : A <--> B): (fpair A <--> fpair B) :=
+    (fun pA => match pA with (p1, p2) => (fst (fmap f) p1, fst (fmap f) p2) end,
+     fun pB => match pB with (p1, p2) => (snd (fmap f) p1, snd (fmap f) p2) end).
   
   Lemma ff_pair : functorFacts fpair fpair_fmap.
   Proof with auto.
     constructor; intros.
-    extensionality p. destruct p.
-    simpl.
-    rewrite fmap_id. rewrite fmap_id...
-    extensionality p. destruct p.
-    simpl.
-    rewrite <- fmap_comp. rewrite <- fmap_comp...
+    + unfold fpair_fmap; f_equal; extensionality p; destruct p;
+      rewrite fmap_id; rewrite fmap_id...
+    + unfold fpair_fmap; simpl; f_equal; extensionality p; destruct p; simpl;
+      rewrite <- !fmap_comp; 
+      destruct (@fmap F1 fF1 _ _ f), (@fmap F2 fF2 _ _ f),  (@fmap F1 fF1 _ _ g),  (@fmap F2 fF2 _ _ g); auto.
   Qed.
 
   Definition f_pair : functor fpair := Functor ff_pair.
@@ -95,17 +97,19 @@ Section OptionFunctor.
   Variable fF: functor F.
 
   Definition foption A := option (F A).
+  Definition foption_fmap (A B : Type) (f : A <--> B): (foption A <--> foption B) :=
+    (option_map (fst (fmap f)), option_map (snd (fmap f))).
 
-  Lemma ff_option : functorFacts foption (fun A B f => option_map (fmap f)).
+  Lemma ff_option : functorFacts foption foption_fmap.
   Proof.
-    constructor.
-    intros. extensionality. destruct x; simpl; auto.
-    unfold id at 2. f_equal.
-    rewrite fmap_id. auto.
+    constructor; intros.
+    + unfold foption_fmap. simpl. 
+      rewrite fmap_id. simpl.
+      f_equal; extensionality p; destruct p; auto.
 
-    intros. extensionality. destruct x; simpl; auto.
-    unfold compose at 1. simpl.
-    f_equal. rewrite <- fmap_comp; auto.
+    + unfold foption_fmap. simpl. 
+      rewrite <- !fmap_comp. simpl.
+      f_equal; extensionality p; destruct p; simpl; destruct (fmap f), (fmap g); auto.
   Qed.
 
   Definition f_option : functor foption := Functor ff_option.
@@ -113,6 +117,7 @@ Section OptionFunctor.
 End OptionFunctor.
 
 Section CoFunFunctor.
+(* TODO: Maybe it should be called FunFunctor now. *)
 (* For the domain, we require the constant to avoid covariance.  Maybe
     there is a nicer way to do this, but for now... 
   Variable dom : Type -> Type. 
@@ -120,27 +125,30 @@ Section CoFunFunctor.
   Definition pfun_fmap (A B:Type) (f:A->B) (g : B -> A) (x: pfun A) : pfun B := 
     (fmap f) oo (x oo fmap g).
 *)
-  Variable dom : Type.
-  Variable rng : Type -> Type.  
-  Variable f_rng : functor rng.
+  Variable Dom : Type -> Type.
+  Variable Rng : Type -> Type.  
+  Variable fDom : functor Dom.
+  Variable fRng : functor Rng.
   
-  Definition ffun (A : Type) : Type := dom -> rng A.
-  Definition ffun_fmap (A B:Type) (f:A->B) (x: ffun A) : ffun B := 
-    (fmap f) oo x.
+  Definition ffun (A : Type) : Type := Dom A -> Rng A.
+  Definition ffun_fmap (A B:Type) (f:A<-->B): (ffun A <--> ffun B) := 
+    (fun fA => (fst (fmap f)) oo fA oo (snd (fmap f)), fun fB => (snd (fmap f)) oo fB oo (fst (fmap f))).
 
   Lemma ff_fun : functorFacts ffun ffun_fmap.
   Proof with auto.
-    constructor;
-    unfold ffun_fmap; intros;
-    [rewrite fmap_id | rewrite <- fmap_comp];
-    extensionality x y...
+    constructor; unfold ffun_fmap; intros.
+    + rewrite !fmap_id.
+      auto.
+    + rewrite <- !fmap_comp. unfold double_compose.
+      f_equal;
+      extensionality x y; destruct (@fmap Rng fRng _ _ f), (@fmap Dom fDom _ _ f), (@fmap Rng fRng _ _ g), (@fmap Dom fDom _ _ g); auto.
   Qed.
   
   Definition f_fun : functor ffun := Functor ff_fun.
   Existing Instance f_fun.
 End CoFunFunctor.
 
-
+(*
 Section SigmaFunctor.
   Variable I:Type.
   Variable F: I -> Type -> Type.
@@ -204,5 +212,5 @@ Section SubsetFunctor.
   Definition f_subset : functor subset := Functor ff_subset.
   Existing Instance f_subset.
 End SubsetFunctor.
-
+*)
 Unset Implicit Arguments.

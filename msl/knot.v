@@ -40,7 +40,7 @@ Module Type KNOT.
      fun w => if le_gt_dec n (level w) then T_bot else p w.
 
   Axiom squash_unsquash : forall x, squash (unsquash x) = x.
-  Axiom unsquash_squash : forall n x', unsquash (squash (n,x')) = (n,fmap (approx n) x').
+  Axiom unsquash_squash : forall n x', unsquash (squash (n,x')) = (n, fst (fmap (approx n, approx n)) x').
 
 
   Axiom knot_level : forall k:knot,
@@ -317,10 +317,10 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
   Qed.
 
   Definition squash (x:nat * F predicate) : knot :=
-    match x with (n,y) => existT (F oo sinv) n (fmap (stratify n) y) end.
+    match x with (n,y) => existT (F oo sinv) n (fst (fmap (stratify n, unstratify n)) y) end.
 
   Definition unsquash (x:knot) : (nat * F predicate) :=
-    match x with existT n y => (n, fmap (unstratify n) y) end.
+    match x with existT n y => (n, fst (fmap (unstratify n, stratify n)) y) end.
 
   Definition def_knot_level (k:knot) := fst (unsquash k).
 
@@ -338,29 +338,23 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
   Definition approx (n:nat) (p:predicate) : predicate := 
      fun w => if le_gt_dec n (def_knot_level (fst w)) then T_bot else p w.
 
+
   Lemma squash_unsquash : forall x, squash (unsquash x) = x.
   Proof.
     intros; destruct x; simpl.
     unfold compose.
-    replace (fmap (stratify x) (fmap (unstratify x) f)) with
-      ((fmap (stratify x) oo fmap (unstratify x)) f) by trivial.
-    rewrite fmap_comp.
-    replace (stratify x oo unstratify x) with (id (sinv x)).
-    rewrite fmap_id; simpl; auto.
-    unfold compose.
-    extensionality z.
-    replace (stratify x (unstratify x z)) with ((stratify x oo unstratify x) z) by trivial.
+    rewrite fmap_app.
+    simpl.
     rewrite stratify_unstratify; auto.
+    rewrite fmap_id; simpl; auto.
   Qed.
 
-  Lemma unsquash_squash : forall n x', unsquash (squash (n,x')) = (n,fmap (approx n) x').
+  Lemma unsquash_squash : forall n x', unsquash (squash (n,x')) = (n, fst (fmap (approx n, approx n)) x').
   Proof.
     intros.
     simpl.
-    replace (fmap (unstratify n) (fmap (stratify n) x')) with
-      ((fmap (unstratify n) oo fmap (stratify n)) x') by trivial.
-    rewrite fmap_comp.
-    apply injective_projections; simpl; trivial.
+    rewrite fmap_app.
+    simpl.
     replace (unstratify n oo stratify n) with (approx n); auto.
     extensionality p z.
     apply leT_asym.
@@ -433,15 +427,16 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
    unfold def_knot_age1; unfold def_knot_level; simpl; intros x'.
     case_eq (unsquash x'); intros.
     destruct x' as [n' xx']. simpl in *. inv H.
-    exists (squash (S n, fmap (unstratify n) xx')).
+    exists (squash (S n, fst (fmap (unstratify n, stratify n)) xx')).
     rewrite unsquash_squash.
     f_equal.
     f_equal.
-    transitivity ((fmap (stratify n) oo fmap (approx (S n)) oo fmap (unstratify n)) xx'); auto.
-    do 2 rewrite fmap_comp.
+    rewrite !fmap_app.
+    simpl.
+    rewrite compose_assoc.
     replace (stratify n oo approx (S n) oo unstratify n) with (@id (sinv n)).
     rewrite fmap_id. auto.
-   clear.
+    clear.
     rewrite <- (stratify_unstratify n).
     f_equal. extensionality  a w.
     unfold approx, compose. destruct w.
