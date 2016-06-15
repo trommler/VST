@@ -302,7 +302,8 @@ Proof.
     assert (exists n0, Omegas n0 (fin_history l)) as HH; [| destruct HH as [n0 ?]].
     Focus 1. {
       destruct (classic (exists n0, (Omegas n0) (fin_history l))); auto; exfalso.
-      admit.
+      
+      admit. (* TODO *)
     } Unfocus.
     hnf; intros.
     exists (max (S n1) n0), (fin_history l).
@@ -321,11 +322,10 @@ Proof.
     auto.
 
   + (* when h_limit is infinite *)
-    
-SearchAbout prefix_history (@eq RandomHistory).
-    
+    admit. (* TODO *)
+Qed.
 
-Lemma limit_domain_anti_chain_covered_forward: forall (Omegas: RandomVarDomainStream) h,
+Lemma limit_domain_anti_chain_covered_backward: forall (Omegas: RandomVarDomainStream) h,
   is_inf_history h ->
   (exists h', (prefix_history h' h \/ strict_conflict_history h' h) /\ limit_domain_anti_chain Omegas h') ->
   (exists h', (prefix_history h' h \/ strict_conflict_history h' h) /\ Omegas 0 h').
@@ -335,12 +335,10 @@ Proof.
   pose proof limit_raw_domain_covered _ _ 0 H1.
   destruct H2 as [h'' [? ?]].
   exists h''; split; auto.
-  destruct H0.
-  + left; apply prefix_history_trans with h'; auto.
-  + apply (strict_conflict_prefix_left h h'' h'); auto.
+  eapply strict_conflict_or_prefix_backward_left; eauto.
 Qed.
 
-Lemma limit_domain_anti_chain_covered_backward: forall (Omegas: RandomVarDomainStream) h,
+Lemma limit_domain_anti_chain_covered_forward: forall (Omegas: RandomVarDomainStream) h,
   is_inf_history h ->
   (exists h', (prefix_history h' h \/ strict_conflict_history h' h) /\ Omegas 0 h') ->
   (exists h', (prefix_history h' h \/ strict_conflict_history h' h) /\ limit_domain_anti_chain Omegas h').
@@ -348,13 +346,30 @@ Proof.
   intros.
   destruct (classic (exists n, exists h', strict_conflict_history h' h /\ (Omegas n) h')).
   + clear H0; destruct H1 as [n [h' [? ?]]].
-    
+    destruct (limit_domain_anti_chain_hered _ _ _ H1) as [h'' [? ?]].
+    exists h''; split; auto.
+    right.
+    eapply strict_conflict_forward_left; eauto.
+  + assert (forall n, exists h', prefix_history h' h /\ (Omegas n) h').
+    Focus 1. {
+      intros n.
+      rewrite (RandomVarDomainStream_same_covered Omegas 0 n h H) in H0.
+      destruct H0 as [h' [[? | ?] ?]].
+      + exists h'; auto.
+      + exfalso; apply H1.
+        exists n, h'; auto.
+    } Unfocus.
+    clear H0 H1.
+    admit.
+Qed.
 
 Definition limit_domain (Omegas: RandomVarDomainStream) (dir: ConvergeDir Omegas): RandomVarDomain.
   exists (limit_domain_anti_chain Omegas).
   eapply is_measurable_subspace_same_covered.
-
-  admit.
+  + hnf; intros; split.
+    - apply limit_domain_anti_chain_covered_forward; auto.
+    - apply limit_domain_anti_chain_covered_backward; auto.
+  + apply (proj2_sig (Omegas 0)).
 Defined.
 
 Definition limit {Omegas: RandomVarDomainStream} {state: Type} {state_sigma: SigmaAlgebra state} (l: ProgStateStream Omegas state) (dir: ConvergeDir Omegas): ProgState (limit_domain Omegas dir) state.
@@ -366,7 +381,7 @@ Definition limit {Omegas: RandomVarDomainStream} {state: Type} {state_sigma: Sig
          exists n' h', n' > n /\ prefix_history h_low h' /\ prefix_history h' h /\ dir n' h')) _ _ _ _ ) _).
   Admitted.
 
-End ProgState.
+End Limit.
 
 Section CutLimit.
 
@@ -382,19 +397,18 @@ Fixpoint left_raw_dir (n: nat): HistoryAntiChain :=
   | S n0 => filter_anti_chain (fun h => covered_by h (left_raw_dir n0)) (MeasurableSubset_HistoryAntiChain (PrFamily.Intersection_MSet (dir n) (PrFamily.PreImage_MSet (l n) filter)))
   end.
 
-Fixpoint left_raw_domain (n: nat): RandomHistory -> Prop :=
+Fixpoint left_raw_domain (n: nat): HistoryAntiChain :=
   match n with
   | 0 => Omegas 0
-  | S n0 => Union _
-             (filter_anti_chain (left_raw_domain n0) (left_raw_dir n0))
-             (filter_anti_chain (fun h => covered_by h (left_raw_dir n0)) (Omegas n))
+  | S n0 => subst_anti_chain (left_raw_dir n0) (left_raw_domain n0) (Omegas n)
   end.
 
 Fixpoint left_raw_state (n: nat): RandomHistory -> MetaState state -> Prop :=
   match n with
   | 0 => fun h s => l 0 h s
   | S n0 => fun h s => 
-              (filter_anti_chain (left_raw_domain n0) (left_raw_dir n0)) h /\ left_raw_state n0 h s \/
+              (Intersection _ (Complement _ (left_raw_dir n0)) (left_raw_domain n0)) h /\
+              left_raw_state n0 h s \/
               covered_by h (left_raw_dir n0) /\ l n h s
   end.
 

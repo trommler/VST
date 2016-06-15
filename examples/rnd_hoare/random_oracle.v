@@ -1,7 +1,6 @@
 Require Import Coq.omega.Omega.
 Require Import Coq.Lists.List.
-Require Export Coq.Logic.Classical.
-Require Export Coq.Logic.FunctionalExtensionality.
+Require Export RndHoare.axiom. Export RndHoare.axiom.NatChoice.
 Require Export Coq.Classes.Equivalence.
 Require Export Coq.Classes.Morphisms.
 
@@ -209,6 +208,14 @@ Proof.
   specialize (H0 m H1); congruence.
 Qed.
 
+Lemma strict_conflict_conflict {ora: RandomOracle}: forall h1 h2,
+  strict_conflict_history h1 h2 ->
+  conflict_history h1 h2.
+Proof.
+  intros ? ? [n [? ?]]; exists n; split; auto.
+  hnf; destruct (h1 n), (h2 n); auto.
+Qed.
+
 Lemma is_0_history_non_conflict {ora: RandomOracle}: forall h1 h2,
   is_n_history 0 h1 ->
   is_n_history 0 h2 ->
@@ -331,27 +338,48 @@ Proof.
 Qed.
 
 Lemma conflict_history_strict_conflict {ora: RandomOracle}: forall h h',
-  is_inf_history h ->
   conflict_history h' h ->
-  prefix_history h' h \/ strict_conflict_history h' h.
+  prefix_history h h' \/ prefix_history h' h \/ strict_conflict_history h' h.
 Proof.
   intros.
-  destruct H0 as [n [? ?]].
-  hnf in H1.
-  specialize (H n).
-  destruct (h n) eqn:?H; [| congruence].
-  destruct (h' n) eqn:?H.
-  + right.
+  destruct H as [n [? ?]].
+  hnf in H0.
+  destruct (h n) eqn:?H, (h' n) eqn:?H.
+  + right; right.
     exists n.
     split; auto.
-    rewrite H2, H3; auto.
-  + left.
+    rewrite H1, H2; auto.
+  + right; left.
     hnf; intros.
     destruct (le_lt_dec n n0).
     - left.
       apply (history_sound1 h' n n0); auto.
     - right.
-      apply H0; auto.
+      apply H; auto.
+  + left.
+    hnf; intros.
+    destruct (le_lt_dec n n0).
+    - left.
+      apply (history_sound1 h n n0); auto.
+    - right.
+      symmetry; apply H; auto.
+  + inversion H0.
+Qed.
+
+Lemma conflict_history_inf_right {ora: RandomOracle}: forall h h',
+  is_inf_history h ->
+  conflict_history h' h ->
+  prefix_history h' h \/ strict_conflict_history h' h.
+Proof.
+  intros.
+  pose proof conflict_history_strict_conflict h h' H0.
+  destruct H1; auto.
+  exfalso.
+  destruct H0 as [n [? ?]].
+  specialize (H1 n).
+  specialize (H n).
+  hnf in H2.
+  destruct (h n), (h' n), H1; auto; try congruence.
 Qed.
 
 Lemma fstn_history_finite {ora: RandomOracle}: forall n h, is_fin_history (fstn_history n h).
@@ -488,8 +516,66 @@ Proof.
   destruct H, H0; congruence.
 Qed.
 
+Lemma comparable_conflict_or_equal {ora: RandomOracle}: forall h1 h2,
+  prefix_history h1 h2 \/ prefix_history h2 h1 ->
+  conflict_history h1 h2 \/ h1 = h2.
+Proof.
+  intros.
+  destruct (classic (exists n, h1 n = None /\ h2 n <> None \/ h1 n <> None /\ h2 n = None)).
+  + left.
+    destruct (dec_inh_nat_subset_has_unique_least_element _ (fun n => (classic (_ n))) H0) as [n [[? ?] _]].
+    clear H0.
+    exists n; split.
+    - hnf; intros.
+      specialize (H2 m).
+      destruct (h1 m) eqn:?H, (h2 m) eqn:?H.
+      * destruct H; specialize (H m); rewrite H3, H4 in H; inversion H; auto; congruence.
+      * assert (n <= m) by (apply H2; right; split; congruence); omega.
+      * assert (n <= m) by (apply H2; left; split; congruence); omega.
+      * auto.
+    - hnf.
+      destruct (h1 n) eqn:?H, (h2 n) eqn:?H; auto;
+      inversion H1; inversion H4; congruence.
+  + right.
+    history_extensionality n.
+    destruct (h1 n) eqn:?H, (h2 n) eqn:?H.
+    - destruct H; specialize (H n); rewrite H1, H2 in H; inversion H; auto; congruence.
+    - exfalso; apply H0; exists n; rewrite H1, H2; right; split; congruence.
+    - exfalso; apply H0; exists n; rewrite H1, H2; left; split; congruence.
+    - auto.
+Qed.
 
-Lemma strict_conflict_prefix_conflict_left {ora: RandomOracle}: forall h h1 h2,
+Lemma strict_conflict_forward_left {ora: RandomOracle}: forall h h1 h2,
+  strict_conflict_history h1 h ->
+  prefix_history h1 h2 ->
+  strict_conflict_history h2 h.
+Proof.
+  intros.
+  destruct H as [n [? ?]]; exists n; split.
+  + apply history_coincide_trans with h1; auto.
+    hnf; intros.
+    specialize (H0 m).
+    destruct H0; [| congruence].
+    apply (history_sound1 h1 m n) in H0; [| omega].
+    rewrite H0 in H1; inversion H1.
+  + specialize (H0 n).
+    destruct (h n), (h1 n), (h2 n); try solve [inversion H1].
+    - destruct H0; [congruence | inversion H0; congruence].
+    - inversion H0; congruence.
+Qed.
+
+Lemma strict_conflict_forward_right {ora: RandomOracle}: forall h h1 h2,
+  strict_conflict_history h h1 ->
+  prefix_history h1 h2 ->
+  strict_conflict_history h h2.
+Proof.
+  intros.
+  apply strict_conflict_history_sym.
+  apply strict_conflict_history_sym in H.
+  eapply strict_conflict_forward_left; eauto.
+Qed.
+
+Lemma strict_conflict_backward_conflict_left {ora: RandomOracle}: forall h h1 h2,
   strict_conflict_history h2 h ->
   prefix_history h1 h2 ->
   conflict_history h1 h.
@@ -529,7 +615,7 @@ Proof.
       rewrite H5 in H1; destruct (h2 n); auto.
 Qed.
 
-Lemma strict_conflict_prefix_conflict_right {ora: RandomOracle}: forall h h1 h2,
+Lemma strict_conflict_backward_conflict_right {ora: RandomOracle}: forall h h1 h2,
   strict_conflict_history h h2 ->
   prefix_history h1 h2 ->
   conflict_history h h1.
@@ -537,10 +623,10 @@ Proof.
   intros.
   apply strict_conflict_history_sym in H.
   apply conflict_history_sym.
-  eapply strict_conflict_prefix_conflict_left; eauto.
+  eapply strict_conflict_backward_conflict_left; eauto.
 Qed.
 
-Lemma strict_conflict_prefix_left {ora: RandomOracle}: forall h h1 h2,
+Lemma strict_conflict_backward_left {ora: RandomOracle}: forall h h1 h2,
   strict_conflict_history h2 h ->
   prefix_history h1 h2 ->
   prefix_history h1 h \/ strict_conflict_history h1 h.
@@ -578,16 +664,66 @@ Proof.
       apply (history_sound1 h1 n n0 l); auto.
 Qed.
 
-Lemma strict_conflict_prefix_right {ora: RandomOracle}: forall h h1 h2,
+Lemma strict_conflict_backward_right {ora: RandomOracle}: forall h h1 h2,
   strict_conflict_history h h2 ->
   prefix_history h1 h2 ->
   prefix_history h1 h \/ strict_conflict_history h h1.
 Proof.
   intros.
   apply strict_conflict_history_sym in H.
-  pose proof (strict_conflict_prefix_left _ _ _ H H0).
+  pose proof (strict_conflict_backward_left _ _ _ H H0).
   destruct H1; auto.
   apply strict_conflict_history_sym in H1; auto.
+Qed.
+
+Lemma strict_conflict_or_prefix_backward_left {ora: RandomOracle}: forall h h1 h2,
+  prefix_history h2 h \/ strict_conflict_history h2 h ->
+  prefix_history h1 h2 ->
+  prefix_history h1 h \/ strict_conflict_history h1 h.
+Proof.
+  intros.
+  destruct H.
+  + left; eapply prefix_history_trans; eauto.
+  + eapply strict_conflict_backward_left; eauto.
+Qed.
+
+Lemma strict_conflict_or_prefix_backward_right {ora: RandomOracle}: forall h h1 h2,
+  prefix_history h2 h \/ strict_conflict_history h h2 ->
+  prefix_history h1 h2 ->
+  prefix_history h1 h \/ strict_conflict_history h h1.
+Proof.
+  intros.
+  destruct H.
+  + left; eapply prefix_history_trans; eauto.
+  + eapply strict_conflict_backward_right; eauto.
+Qed.
+
+Lemma conflict_backward_left {ora: RandomOracle}: forall h h1 h2,
+  conflict_history h2 h ->
+  prefix_history h1 h2 ->
+  conflict_history h1 h \/ h1 = h.
+Proof.
+  intros.
+  destruct (conflict_history_strict_conflict _ _ H) as [? | [? | ?]].
+  + pose proof prefix_history_comparable _ _ _ H0 H1.
+    apply comparable_conflict_or_equal; auto.
+  + apply comparable_conflict_or_equal; auto.
+    left; apply prefix_history_trans with h2; auto.
+  + left; eapply strict_conflict_backward_conflict_left; eauto.
+Qed.
+
+Lemma conflict_backward_right {ora: RandomOracle}: forall h h1 h2,
+  conflict_history h h2 ->
+  prefix_history h1 h2 ->
+  conflict_history h h1 \/ h = h1.
+Proof.
+  intros.
+  destruct (conflict_history_strict_conflict _ _ H) as [? | [? | ?]].
+  + apply comparable_conflict_or_equal; auto.
+    right; apply prefix_history_trans with h2; auto.
+  + pose proof prefix_history_comparable _ _ _ H0 H1.
+    rewrite or_comm in H2; apply comparable_conflict_or_equal; auto.
+  + left; eapply strict_conflict_backward_conflict_right; eauto.
 Qed.
 
 (* TODO: put this in lib *)
@@ -620,6 +756,23 @@ Coercion history_in_anti_chain: HistoryAntiChain >-> Sortclass.
 Definition history_in_anti_chain_history {ora: RandomOracle} (d: HistoryAntiChain) : history_in_anti_chain d -> RandomHistory := @proj1_sig _ _.
 
 Coercion history_in_anti_chain_history: history_in_anti_chain >-> RandomHistory.
+
+Lemma anti_chain_extensionality {ora: RandomOracle}: forall d1 d2: HistoryAntiChain, (forall h, d1 h <-> d2 h) -> d1 = d2.
+Proof.
+  intros.
+  destruct d1 as [d1 [?H]], d2 as [d2 [?H]]; simpl in *.
+  assert (d1 = d2) by (extensionality h; apply prop_ext; auto).
+  subst d2.
+  assert (H0 = H1) by (apply proof_irrelevance).
+  subst H1.
+  auto.
+Qed.
+
+Tactic Notation "anti_chain_extensionality" ident(x) :=
+  match goal with
+    [ |- ?X = ?Y ] =>
+     apply anti_chain_extensionality; intro x
+  end.
 
 Lemma LegalHistoryAntiChain_Included {ora: RandomOracle}: forall (d1 d2: RandomHistory -> Prop), (forall h, d1 h -> d2 h) -> LegalHistoryAntiChain d2 -> LegalHistoryAntiChain d1.
 Proof.
@@ -683,6 +836,22 @@ Definition same_covered_anti_chain {ora: RandomOracle} (d1 d2: HistoryAntiChain)
   forall h, is_inf_history h ->
     ((exists h', (prefix_history h' h \/ strict_conflict_history h' h) /\ d1 h') <->
      (exists h', (prefix_history h' h \/ strict_conflict_history h' h) /\ d2 h')).
+
+Definition subst_anti_chain {ora: RandomOracle} (P: RandomHistory -> Prop) (d1 d2: HistoryAntiChain): HistoryAntiChain.
+  exists (fun h => d1 h /\ ~ P h \/ d2 h /\ covered_by h (filter_anti_chain P d1)).
+  constructor.
+  hnf; intros ? ? ? [? | ?] [? | ?].
+  + apply (@rand_consi _ _ (raw_anti_chain_legal d1) h1 h2); tauto.
+  + destruct H0 as [? ?], H1 as [? [h2' [? [? ?]]]].
+    destruct (conflict_backward_right h1 h2' h2 H H3).
+    - apply (@rand_consi _ _ (raw_anti_chain_legal d1) h1 h2'); tauto.
+    - subst h2'; auto.
+  + destruct H1 as [? ?], H0 as [? [h1' [? [? ?]]]].
+    destruct (conflict_backward_left h2 h1' h1 H H3).
+    - apply (@rand_consi _ _ (raw_anti_chain_legal d1) h1' h2); tauto.
+    - subst h1'; auto.
+  + apply (@rand_consi _ _ (raw_anti_chain_legal d2) h1 h2); tauto.
+Defined.
 
 Lemma anti_chain_not_comparable {ora: RandomOracle}: forall (d: HistoryAntiChain) h1 h2,
   d h1 ->
@@ -792,14 +961,143 @@ Proof.
     destruct (H0 h2 H4) as [h1' [? ?]].
     destruct H2.
     - apply (proj_in_anti_chain_unique d1 h1 h2 h); auto.
-    - pose proof strict_conflict_prefix_right h2 h1 h H2 H3.
+    - pose proof strict_conflict_backward_right h2 h1 h H2 H3.
       destruct H7; auto.
-      pose proof strict_conflict_prefix_conflict_left h1 h1' h2 H7 H5.
+      pose proof strict_conflict_backward_conflict_left h1 h1' h2 H7 H5.
       pose proof @rand_consi _ _ (raw_anti_chain_legal d1) _ _ H8 H6 H1.
       inversion  H9.
 Qed.
 
-Require RndHoare.axiom. Import RndHoare.axiom.NatChoice.
+Lemma same_covered_future_anti_chain_strong_spec {ora: RandomOracle}: forall d1 d2,
+  same_covered_anti_chain d1 d2 ->
+  future_anti_chain d1 d2 ->
+  forall h1 h,
+  d1 h1 ->
+  is_inf_history h ->
+  prefix_history h1 h \/ strict_conflict_history h1 h ->
+  exists h2, prefix_history h1 h2 /\ d2 h2 /\ (prefix_history h2 h \/ strict_conflict_history h2 h).
+Proof.
+  intros.
+  destruct H3.
+  + pose proof proj1 (H h H2) (ex_intro _ h1 (conj (or_introl H3) H1)).
+    destruct H4 as [h2 [? ?]].
+    exists h2.
+    split; auto.
+    pose proof H0 _ H5.
+    destruct H6 as [h1' [? ?]].
+    pose proof strict_conflict_or_prefix_backward_left _ _ _ H4 H6.
+    destruct H8.
+    - pose proof prefix_history_comparable _ _ _ H3 H8.
+      apply comparable_conflict_or_equal in H9.
+      destruct H9; [| subst h1'; auto].
+      exfalso; apply (@rand_consi _ _ (raw_anti_chain_legal d1) _ _ H9 H1 H7).
+    - pose proof strict_conflict_backward_right _ _ _ H8 H3.
+      destruct H9.
+      * pose proof anti_chain_not_comparable _ _ _ H1 H7 H9.
+        subst h1; auto.
+      * apply strict_conflict_conflict in H9.
+        exfalso; apply (@rand_consi _ _ (raw_anti_chain_legal d1) _ _ H9 H7 H1).
+  + pose proof same_covered_future_anti_chain_spec _ _ H H0 h1 H1.
+    destruct H4 as [h2 [? ?]]; exists h2.
+    split; [| split]; auto.
+    right.
+    eapply strict_conflict_forward_left; eauto.
+Qed.
+
+Lemma same_covered_future_anti_chain_subset1 {ora: RandomOracle}: forall (d1' d1 d2: HistoryAntiChain),
+  same_covered_anti_chain d1 d2 ->
+  future_anti_chain d1 d2 ->
+  (forall h, d1' h -> d1 h) ->
+  same_covered_anti_chain d1' (filter_anti_chain (fun h => covered_by h d1') d2).
+Proof.
+  intros.
+  hnf; intros h ?.
+  split; intros [h' [? ?]].
+  + pose proof same_covered_future_anti_chain_strong_spec d1 d2 H H0 h' h (H1 _ H4) H2 H3.
+    destruct H5 as [h'' [? [? ?]]].
+    exists h''; split; [| split]; auto.
+    exists h'; auto.
+  + destruct H4 as [? [h'' [? ?]]].
+    exists h''; split; auto.
+    eapply strict_conflict_or_prefix_backward_left; eauto.
+Qed.
+
+Lemma same_covered_future_anti_chain_subset2 {ora: RandomOracle}: forall (d1' d1 d2: HistoryAntiChain),
+  same_covered_anti_chain d1 d2 ->
+  future_anti_chain d1 d2 ->
+  (forall h, d1' h -> d1 h) ->
+  future_anti_chain d1' (filter_anti_chain (fun h => covered_by h d1') d2).
+Proof.
+  intros.
+  hnf; intros.
+  destruct H2 as [? [h' [? ?]]].
+  exists h'; auto.
+Qed.
+
+Lemma subst_anti_chain_spec {ora: RandomOracle}: forall (P d1 d2: HistoryAntiChain) h,
+  (forall h, P h -> d1 h) ->
+  (subst_anti_chain P d1 d2 h <-> d1 h /\ ~ P h \/ d2 h /\ covered_by h P).
+Proof.
+  intros.
+  simpl.
+  apply Morphisms_Prop.or_iff_morphism; [reflexivity |].
+  apply Morphisms_Prop.and_iff_morphism; [reflexivity |].
+  apply Morphisms_Prop.ex_iff_morphism; intros h'.
+  apply Morphisms_Prop.and_iff_morphism; [reflexivity |].
+  simpl.
+  specialize (H h'); tauto.
+Qed.
+
+Lemma subst_anti_chain_future {ora: RandomOracle}: forall P (d1 d2: HistoryAntiChain),
+  future_anti_chain d1 (subst_anti_chain P d1 d2).
+Proof.
+  intros.
+  hnf; intros.
+  simpl in H.
+  destruct H as [[? ?] | [? ?]].
+  + exists h; split; auto.
+    apply prefix_history_refl.
+  + destruct H0 as [h' [? [? ?]]].
+    exists h'; auto.
+Qed.
+
+Lemma subst_anti_chain_same_covered {ora: RandomOracle}: forall (P d1 d2: HistoryAntiChain),
+  (forall h, P h -> d1 h) ->
+  same_covered_anti_chain P (filter_anti_chain (fun h => covered_by h P) d2) ->
+  same_covered_anti_chain d1 (subst_anti_chain P d1 d2).
+Proof.
+  intros.
+  hnf; intros.
+  split; intros [h' [? ?]].
+  + destruct (classic (P h')).
+    - pose proof proj1 (H0 _ H1).
+      specialize (H5 (ex_intro _ h' (conj H2 H4))).
+      destruct H5 as [h'' [? ?]].
+      exists h''; split; auto.
+      simpl in H6; right; auto.
+      replace (filter_anti_chain P d1) with P; auto.
+      anti_chain_extensionality h0; simpl.
+      specialize (H h0); tauto.
+    - exists h'; split; auto.
+      left; auto.
+  + destruct H3 as [[? ?] | [? ?]].
+    - exists h'; auto.
+    - destruct H4 as [h'' [? [? ?]]].
+      exists h''; split; auto.
+      eapply strict_conflict_or_prefix_backward_left; eauto.
+Qed.
+
+Lemma subst_anti_chain_same_covered' {ora: RandomOracle}: forall (P P' d1 d2: HistoryAntiChain),
+  (forall h, P h -> d1 h) ->
+  (forall h, P h -> P' h) ->
+  same_covered_anti_chain P' d2 ->
+  future_anti_chain P' d2 ->
+  same_covered_anti_chain d1 (subst_anti_chain P d1 d2).
+Proof.
+  intros.
+  apply subst_anti_chain_same_covered; auto.
+  eapply same_covered_future_anti_chain_subset1; eauto.
+Qed.
 
 Fixpoint app_fin_inf {ora: RandomOracle} (l: list RandomQA) (f: nat -> RandomQA) :=
   match l with
@@ -832,7 +1130,7 @@ Proof.
     rewrite IHl by (simpl in H; omega).
     f_equal.
 Qed.
-  
+
 (* These three lemmas are copied from veric/assert_lemmas.v and veric/initial_world.v *)
 Lemma nth_error_in_bounds: forall {A} (l: list A) i, (O <= i < length l)%nat
   -> exists x, nth_error l i = value x.

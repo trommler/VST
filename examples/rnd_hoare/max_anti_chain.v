@@ -319,7 +319,7 @@ Proof.
   + destruct H0 as [h' [? ?]].
     exists h'.
     split; auto.
-    apply conflict_history_strict_conflict; auto.
+    apply conflict_history_inf_right; auto.
     apply conflict_history_sym; auto.
   + exists h.
     pose proof max_pre_extension_spec d (@rand_consi _ _ (raw_anti_chain_legal d)).

@@ -1,5 +1,10 @@
 Require Import Coq.Lists.List.
-Require Import Coq.Logic.ClassicalChoice.
+Require Export Coq.Logic.ClassicalChoice.
+Require Export Coq.Logic.ClassicalFacts.
+Require Export Coq.Logic.Classical.
+Require Export Coq.Logic.FunctionalExtensionality.
+
+Axiom prop_ext : prop_extensionality.
 
 Module Type NAT_CHOICE.
 
