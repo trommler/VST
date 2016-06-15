@@ -921,6 +921,20 @@ Proof.
   apply prefix_history_trans with h2; auto.
 Qed.
 
+Lemma future_anti_chain_Included {ora: RandomOracle}: forall (l1 l2 r1 r2: HistoryAntiChain),
+  (forall h, l1 h -> l2 h) ->
+  (forall h, r2 h -> r1 h) ->
+  future_anti_chain l1 r1 ->
+  future_anti_chain l2 r2.
+Proof.
+  intros.
+  hnf; intros.
+  apply H0 in H2.
+  apply H1 in H2.
+  destruct H2 as [h' [? ?]].
+  exists h'; auto.
+Qed.
+
 Lemma proj_in_anti_chain_unique {ora: RandomOracle}: forall (d: HistoryAntiChain) h1 h2 h3,
   prefix_history h1 h3 ->
   prefix_history h2 h3 ->

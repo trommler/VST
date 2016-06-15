@@ -29,47 +29,30 @@ Definition measurable_subspace: Type := {Omega: Ensemble U | is_measurable_subsp
 Definition measurable_subspace_Ensemble: measurable_subspace -> Ensemble U := @proj1_sig _ _.
 
 Global Coercion measurable_subspace_Ensemble: measurable_subspace >-> Ensemble.
-(*
-Definition measurable_subspace_Prop: measurable_subspace -> U -> Prop := @proj1_sig _ _.
 
-Global Coercion measurable_subspace_Prop: measurable_subspace >-> Funclass.
-*)
-Definition is_measurable_set (P: Ensemble U) (Omega: measurable_subspace) := @is_measurable_set {x: U | Omega x} (sub_sigma_algebra Omega) (sig_Set P Omega).
+Definition is_measurable_set (P: Ensemble U) (Omega: measurable_subspace): Prop := Included P Omega /\ @is_measurable_set {x: U | Omega x} (sub_sigma_algebra Omega) (sig_Set P Omega).
 
 Lemma is_measurable_subspace_consi: forall (Omega Omega': measurable_subspace), Included Omega' Omega -> is_measurable_set Omega' Omega.
 Proof.
   intros.
+  split; auto.
   apply is_measurable_subspace_consi; auto.
 Qed.
 
 Definition measurable_set (Omega: measurable_subspace): Type := {P: Ensemble U | is_measurable_set P Omega}.
 
-Definition measurable_set_Ensemble (Omega: measurable_subspace): measurable_set Omega -> Ensemble U := fun P => Intersection _ (@proj1_sig _ _ P) Omega.
+Definition measurable_set_Ensemble (Omega: measurable_subspace): measurable_set Omega -> Ensemble U := @proj1_sig _ _.
 
 Global Coercion measurable_set_Ensemble: measurable_set >-> Ensemble.
 
-Definition measurable_set_Prop (Omega: measurable_subspace): measurable_set Omega -> U -> Prop := fun P => Intersection _ (@proj1_sig _ _ P) Omega.
-
-Global Coercion measurable_set_Prop: measurable_set >-> Funclass.
-
-Lemma measurable_set_sound: forall {Omega: measurable_subspace} (P: measurable_set Omega), is_measurable_set P Omega.
-Proof.
-  intros.
-  destruct P as [P ?H].
-  unfold measurable_set_Ensemble.
-  unfold is_measurable_set in *; simpl.
-  eapply is_measurable_set_proper; [| eassumption].
-  apply sig_Set_equiv.
-  rewrite Same_set_spec; intros x; rewrite !Intersection_spec; simpl.
-  tauto.
-Qed.
-
 Definition measurable_set_inj {Omega: measurable_subspace} (P: measurable_set Omega): @sigma_algebra.measurable_set _ (sub_sigma_algebra Omega) :=
-  exist sigma_algebra.is_measurable_set (sig_Set (proj1_sig P) (proj1_sig Omega)) (proj2_sig P).
+  exist sigma_algebra.is_measurable_set (sig_Set (proj1_sig P) (proj1_sig Omega)) (proj2 (proj2_sig P)).
 
 Definition measurable_set_inv {Omega: measurable_subspace} (P: @sigma_algebra.measurable_set _ (sub_sigma_algebra Omega)): measurable_set Omega.
   exists (unsig_Set P).
-  unfold is_measurable_set, sig_Set, unsig_Set.
+  unfold is_measurable_set.
+  split; [apply unsig_Set_Included |].
+  unfold sig_Set, unsig_Set.
   destruct P as [P ?H]; simpl.
   eapply is_measurable_set_proper; [| eassumption].
   split; hnf; unfold In; intros.
@@ -83,21 +66,15 @@ Lemma measurable_set_inj_spec: forall {Omega: measurable_subspace} (P: measurabl
 Proof.
   intros.
   split; intros.
-  + destruct x; split; auto.
-  + simpl.
-    destruct P as [P ?H], x as [x ?H]; simpl in *.
-    unfold sig_Set; simpl.
-    destruct H; auto.
+  + destruct x; auto.
+  + simpl. auto.
 Qed.
 
 Lemma measurable_set_inv_spec: forall {Omega: measurable_subspace} (P: @sigma_algebra.measurable_set _ (sub_sigma_algebra Omega)) x, measurable_set_inv P x <-> unsig_Set P x.
 Proof.
   intros.
-  unfold measurable_set_Prop;
-  rewrite Intersection_spec.
-  assert (unsig_Set P x -> Omega x); [| tauto].
-  intros [? ?].
-  auto.
+  simpl.
+  reflexivity.
 Qed.
 
 Record MeasurableFunction (Omega: measurable_subspace) (B: Type) {SB: SigmaAlgebra B}: Type := {
@@ -105,7 +82,7 @@ Record MeasurableFunction (Omega: measurable_subspace) (B: Type) {SB: SigmaAlgeb
   rf_partial_functionality: forall a b1 b2, raw_function a b1 -> raw_function a b2 -> b1 = b2;
   rf_complete: forall a, Omega a -> exists b, raw_function a b;
   rf_sound: forall a b, raw_function a b -> Omega a;
-  rf_preserve: forall (P: sigma_algebra.measurable_set B), is_measurable_set (fun a => forall b, raw_function a b -> P b) Omega
+  rf_preserve: forall (P: sigma_algebra.measurable_set B), is_measurable_set (fun a => Omega a /\ forall b, raw_function a b -> P b) Omega
 }.
 
 Definition MeasurableFunction_raw_function (Omega: measurable_subspace) (B: Type) {SB: SigmaAlgebra B} (f: MeasurableFunction Omega B): U -> B -> Prop := raw_function _ _ f.
@@ -120,7 +97,12 @@ Definition MeasurableFunction_inj {Omega: measurable_subspace} {B: Type} {SB: Si
     destruct (rf_complete _ _ f a p) as [b ?H].
     exists b; auto.
   + intros; simpl.
-    exact (rf_preserve _ _ f P).
+    pose proof (rf_preserve _ _ f P).
+    destruct H as [_ ?].
+    eapply is_measurable_set_proper; [| eassumption].
+    rewrite Same_set_spec; intros [a ?H]; unfold sig_Set; simpl.
+    split; intros; auto.
+    destruct H1; auto.
 Defined.
 
 Definition MeasurableFunction_inv {Omega: measurable_subspace} {B: Type} {SB: SigmaAlgebra B} (f: @measurable_function.MeasurableFunction _ B (sub_sigma_algebra Omega) _): MeasurableFunction Omega B.
@@ -137,26 +119,26 @@ Definition MeasurableFunction_inv {Omega: measurable_subspace} {B: Type} {SB: Si
   + intros.
     pose proof measurable_function.rf_preserve _ _ f P.
     unfold is_measurable_set.
-    eapply sigma_algebra.is_measurable_set_proper; [| eassumption].
-    split; hnf; unfold In, sig_Set; intros.
-    - apply H0.
-      exists x; auto.
-    - apply H0; intros.
-      destruct H1 as [? [? ?]]; auto.
-      assert (x = x0).
-      Focus 1. {
-        destruct x as [x p], x0 as [x0 p0]; simpl in H1; subst.
-        f_equal.
-        apply proof_irrelevance; auto.
-      } Unfocus.
-      subst; auto.
+    split.
+    - unfold Included, Ensembles.In; simpl; intros. tauto.
+    - eapply is_measurable_set_proper; [| eassumption].
+      rewrite Same_set_spec; intros [a ?H]; unfold sig_Set; simpl.
+      split; intros.
+      * destruct H1 as [_ ?].
+        apply H1.
+        exists (exist _ a H0); split; auto.
+      * split; auto.
+        intros; apply H1.
+        destruct H2 as [[? ?] [? ?]]; simpl in *.
+        subst a; auto.
+        assert (H0 = p) by (apply proof_irrelevance); subst p; auto.
 Defined.
 
 Lemma measurable_set_measurable_subspace: forall (Omega: measurable_subspace) (A: measurable_set Omega) x, A x -> Omega x.
 Proof.
   intros.
-  unfold measurable_set_Prop in H.
-  rewrite Intersection_spec in H; tauto.
+  destruct A as [A [? ?]].
+  auto.
 Qed.
 
 Definition Compose {Omega: measurable_subspace} {B C: Type} {SB: SigmaAlgebra B} {SC: SigmaAlgebra C} (g: measurable_function.MeasurableFunction B C) (f: MeasurableFunction Omega B): MeasurableFunction Omega C := MeasurableFunction_inv (measurable_function.Compose g (MeasurableFunction_inj f)).
@@ -184,8 +166,8 @@ Proof.
   split; intros [? ?].
   + simpl in H.
     rewrite Intersection_spec in H; destruct H.
-    split; split; auto.
-  + destruct H, H0.
+    split; auto.
+  + assert (Omega x) by (eapply measurable_set_measurable_subspace; eauto).
     exists H1.
     split; auto.
 Qed.
@@ -201,14 +183,30 @@ Proof.
   split.
   + intros [? ?].
     simpl in H.
-    rewrite Union_spec in H; destruct H; [left | right]; split; auto.
+    rewrite Union_spec in H; destruct H; [left | right]; auto.
   + intros [? | ?].
-    - destruct H.
+    - assert (Omega x) by (eapply measurable_set_measurable_subspace; eauto).
       exists H0.
       left; auto.
-    - destruct H.
+    - assert (Omega x) by (eapply measurable_set_measurable_subspace; eauto).
       exists H0.
       right; auto.
+Qed.
+
+Lemma Compose_spec: forall {Omega: measurable_subspace} {B C: Type} {SB: SigmaAlgebra B} {SC: SigmaAlgebra C} (g: measurable_function.MeasurableFunction B C) (f: MeasurableFunction Omega B) x c, Compose g f x c <-> exists b, f x b /\ g b c.
+Proof.
+  intros.
+  unfold Compose.
+  split; intros.
+  + unfold MeasurableFunction_inv, MeasurableFunction_inj in H; simpl in H.
+    destruct H as [[? ?] [? [? [? ?]]]].
+    subst.
+    exists x1; auto.
+  + destruct H as [? [? ?]].
+    pose proof rf_sound _ _ f x _ H.
+    exists (exist _ x H1); simpl.
+    split; auto.
+    exists x0; auto.
 Qed.
 
 Context {PrF: ProbabilityMeasureFamily U}.

@@ -29,9 +29,7 @@ Definition MeasurableSubset {HBSFo: HistoryBasedSigF ora} (Omega: RandomVarDomai
 Definition MeasurableSubset_HistoryAntiChain {HBSFo: HistoryBasedSigF ora} {Omega: RandomVarDomain} (P: MeasurableSubset Omega): HistoryAntiChain.
   exists (PrFamily.measurable_set_Ensemble Omega P).
   assert (Included (PrFamily.measurable_set_Ensemble Omega P) Omega).
-  + unfold PrFamily.measurable_set_Ensemble.
-    intros ? [? ?].
-    auto.
+  + exact (PrFamily.measurable_set_measurable_subspace _ _).
   + eapply LegalHistoryAntiChain_Included; eauto.
     apply measurable_subspace_legal.
     destruct Omega; auto.
@@ -69,18 +67,7 @@ Definition RandomVarMap {Omega: RandomVarDomain} {A B: Type} {SA: SigmaAlgebra A
 
 Lemma RandomVarMap_sound: forall {Omega: RandomVarDomain} {A B: Type} {SA: SigmaAlgebra A} {SB: SigmaAlgebra B} (f: MeasurableFunction A B) (v: RandomVariable Omega A) h b,
   RandomVarMap f v h b <-> exists a, v h a /\ f a b.
-Proof.
-  intros; simpl.
-  split.
-  + intros [[? ?] [? [? [? ?]]]]; simpl in *.
-    subst.
-    exists x0; auto.
-  + intros [? [? ?]].
-    pose proof PrFamily.rf_sound _ _ v _ _ H.
-    exists (exist _ h H1); simpl.
-    split; auto.
-    exists x; auto.
-Qed.
+Proof. intros. apply PrFamily.Compose_spec; auto. Qed.
 
 Record HeredRandomVariable (A: Type) {SA: SigmaAlgebra A}: Type := {
   well_defined_dom: RandomVarDomain -> Prop;

@@ -234,17 +234,8 @@ Definition MeasurableSubset_stream_proj (Omegas: RandomVarDomainStream) (n: nat)
     - apply rdom_same_covered.
     - apply rdom_forward.
     - intro; apply MeasurableSubset_in_domain.
-  + apply PrFamily.measurable_set_sound.
+  + apply (proj2_sig P).
 Defined.
-
-Lemma MeasurableSubset_stream_proj_spec: forall (Omegas: RandomVarDomainStream) (n: nat) (P: MeasurableSubset (Omegas n)) h, MeasurableSubset_stream_proj Omegas n P h <-> covered_by h P /\ (Omegas (S n)) h.
-Proof.
-  intros.
-  simpl.
-  unfold PrFamily.measurable_set_Ensemble.
-  rewrite Intersection_spec; simpl.
-  tauto.
-Qed.
 
 Lemma limit_raw_domain_covered: forall (Omegas: RandomVarDomainStream) h n, limit_raw_domain Omegas h -> covered_by h (Omegas n).
 Proof.
@@ -442,18 +433,13 @@ Proof.
   intros.
   induction n; unfold Included, Ensembles.In; intros.
   + apply (MeasurableSubset_in_domain (Omegas 0) _ x H).
-  + simpl in H.
-    match goal with
-    | H: PrFamily.measurable_set_Ensemble ?O ?A x |- _ => change (PrFamily.measurable_set_Ensemble O A x) with ((MeasurableSubset_HistoryAntiChain A) x) in H
-    end.
+  + Opaque PrFamily.Intersection_MSet MeasurableSubset_HistoryAntiChain. simpl in H. Transparent PrFamily.Intersection_MSet MeasurableSubset_HistoryAntiChain. (* should not need this Opaque-Transparent. *)
     rewrite !RV.Intersection_spec in H.
-    destruct H as [? [? ?]].
-    rewrite MeasurableSubset_stream_proj_spec in H; destruct H.
+    destruct H as [[? ?] [? ?]].
     right.
     split.
     - eapply MeasurableSubset_in_domain; eauto.
     - replace (filter_anti_chain (left_raw_dir n) (left_raw_domain n)) with (left_raw_dir n: HistoryAntiChain); auto.
-      unfold MeasurableSubset_stream_proj in H; simpl in H.
       anti_chain_extensionality h.
       simpl.
       specialize (IHn h). tauto.
@@ -509,14 +495,20 @@ Proof.
     - apply RandomVarDomainStream_same_covered.
     - apply left_raw_domain_same_covered_with_head.
   + reflexivity.
-  + apply PrFamily.measurable_set_sound.
+  + apply (proj2_sig (left_raw_dir n)).
 Qed.
 
 Lemma left_raw_dir_forward: forall n, future_anti_chain (left_raw_dir n) (left_raw_dir (S n)).
 Proof.
   intros.
   simpl.
-  admit.
+  apply future_anti_chain_Included with (l1 := left_raw_dir n) (r1 := MeasurableSubset_stream_proj Omegas n (left_raw_dir n)).
+  + auto.
+  + intros.
+    rewrite RV.Intersection_spec in H.
+    tauto.
+  + hnf; intros.
+    destruct H; auto.
 Qed.
 
 Lemma left_raw_dir_slow: forall n h, left_raw_domain n h -> ~ left_raw_domain (S n) h -> left_raw_dir n h.
@@ -532,4 +524,4 @@ Definition left_dir: ConvergeDir left_domains := Build_ConvergeDir _ (fun n => e
 Definition right_raw_dir (n: nat): RandomHistory -> Prop :=
   fun h => exists m, covered_by h (left_raw_dir m) /\ ~ covered_by h (left_raw_dir (S m)) /\ MeasurableSubset_HistoryAntiChain (dir (n + S m)) h.
 
-End CutLimit. 
+End CutLimit.

@@ -67,7 +67,7 @@ Definition ConstantFunction {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B
       * subst; auto.
     - eapply is_measurable_set_proper; [| apply complement_measurable; apply full_measurable].
       split; hnf; unfold Complement, In; simpl; intros.
-      * specialize (H0 b0); exfalso; auto.
+      * specialize (H0 b0); exfalso; apply H, H0; auto.
       * exfalso; apply H0; constructor.
 Defined.
 

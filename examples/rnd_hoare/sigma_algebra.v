@@ -4,6 +4,9 @@ Require Export Coq.Classes.Morphisms.
 Require Export Coq.Logic.Classical.
 Require Export RamifyCoq.lib.Ensembles_ext.
 
+(* TODO: move it into library. *)
+Global Coercion Ensembles.In: Ensemble >-> Funclass.
+
 Definition unsig_Set {U: Type} {P: U -> Prop} (A: Ensemble {x: U | P x}): Ensemble U := fun x => exists H: P x, A (exist _ x H).
 
 Definition sig_Set {U: Type} (Q P: Ensemble U): Ensemble {x: U | P x} := fun x => Q (proj1_sig x).
@@ -17,6 +20,15 @@ Proof.
   rewrite Same_set_spec in H; specialize (H x).
   rewrite !Intersection_spec in H.
   tauto.
+Qed.
+
+Lemma unsig_Set_Included: forall {U: Type} {P: U -> Prop} (A: Ensemble {x: U | P x}), Included (unsig_Set A) P.
+Proof.
+  intros.
+  unfold Included, Ensembles.In.
+  intros.
+  destruct H.
+  auto.
 Qed.
 
 Class SigmaAlgebra (Omega: Type): Type := {
