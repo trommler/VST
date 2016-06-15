@@ -29,11 +29,11 @@ Definition measurable_subspace: Type := {Omega: Ensemble U | is_measurable_subsp
 Definition measurable_subspace_Ensemble: measurable_subspace -> Ensemble U := @proj1_sig _ _.
 
 Global Coercion measurable_subspace_Ensemble: measurable_subspace >-> Ensemble.
-
+(*
 Definition measurable_subspace_Prop: measurable_subspace -> U -> Prop := @proj1_sig _ _.
 
 Global Coercion measurable_subspace_Prop: measurable_subspace >-> Funclass.
-
+*)
 Definition is_measurable_set (P: Ensemble U) (Omega: measurable_subspace) := @is_measurable_set {x: U | Omega x} (sub_sigma_algebra Omega) (sig_Set P Omega).
 
 Lemma is_measurable_subspace_consi: forall (Omega Omega': measurable_subspace), Included Omega' Omega -> is_measurable_set Omega' Omega.
@@ -52,12 +52,20 @@ Definition measurable_set_Prop (Omega: measurable_subspace): measurable_set Omeg
 
 Global Coercion measurable_set_Prop: measurable_set >-> Funclass.
 
-Definition measurable_set_inj {Omega: measurable_subspace} (P: measurable_set Omega): @sigma_algebra.measurable_set _ (sub_sigma_algebra Omega).
-  destruct Omega as [Omega ?H], P as [P ?H].
-  unfold is_measurable_set in H0.
-  simpl in *.
-  exact (exist _ _ H0).
-Defined.
+Lemma measurable_set_sound: forall {Omega: measurable_subspace} (P: measurable_set Omega), is_measurable_set P Omega.
+Proof.
+  intros.
+  destruct P as [P ?H].
+  unfold measurable_set_Ensemble.
+  unfold is_measurable_set in *; simpl.
+  eapply is_measurable_set_proper; [| eassumption].
+  apply sig_Set_equiv.
+  rewrite Same_set_spec; intros x; rewrite !Intersection_spec; simpl.
+  tauto.
+Qed.
+
+Definition measurable_set_inj {Omega: measurable_subspace} (P: measurable_set Omega): @sigma_algebra.measurable_set _ (sub_sigma_algebra Omega) :=
+  exist sigma_algebra.is_measurable_set (sig_Set (proj1_sig P) (proj1_sig Omega)) (proj2_sig P).
 
 Definition measurable_set_inv {Omega: measurable_subspace} (P: @sigma_algebra.measurable_set _ (sub_sigma_algebra Omega)): measurable_set Omega.
   exists (unsig_Set P).
@@ -70,6 +78,27 @@ Definition measurable_set_inv {Omega: measurable_subspace} (P: @sigma_algebra.me
   + exists (proj2_sig x).
     destruct x; simpl; auto.
 Defined.
+
+Lemma measurable_set_inj_spec: forall {Omega: measurable_subspace} (P: measurable_set Omega) x, measurable_set_inj P x <-> P (proj1_sig x).
+Proof.
+  intros.
+  split; intros.
+  + destruct x; split; auto.
+  + simpl.
+    destruct P as [P ?H], x as [x ?H]; simpl in *.
+    unfold sig_Set; simpl.
+    destruct H; auto.
+Qed.
+
+Lemma measurable_set_inv_spec: forall {Omega: measurable_subspace} (P: @sigma_algebra.measurable_set _ (sub_sigma_algebra Omega)) x, measurable_set_inv P x <-> unsig_Set P x.
+Proof.
+  intros.
+  unfold measurable_set_Prop;
+  rewrite Intersection_spec.
+  assert (unsig_Set P x -> Omega x); [| tauto].
+  intros [? ?].
+  auto.
+Qed.
 
 Record MeasurableFunction (Omega: measurable_subspace) (B: Type) {SB: SigmaAlgebra B}: Type := {
   raw_function: U -> B -> Prop;
@@ -134,11 +163,53 @@ Definition Compose {Omega: measurable_subspace} {B C: Type} {SB: SigmaAlgebra B}
 
 Definition PreImage_MSet {Omega: measurable_subspace} {B: Type} {SB: SigmaAlgebra B} (f: MeasurableFunction Omega B) (P: sigma_algebra.measurable_set B): measurable_set Omega := measurable_set_inv (PreImage_MSet (MeasurableFunction_inj f) P).
 
+Lemma PreImage_spec: forall {Omega: measurable_subspace} {B: Type} {SB: SigmaAlgebra B} (f: MeasurableFunction Omega B) (P: sigma_algebra.measurable_set B) x, PreImage_MSet f P x <-> Omega x /\ forall b, f x b -> P b.
+Proof.
+  intros.
+  unfold PreImage_MSet.
+  rewrite measurable_set_inv_spec.
+  split; intros [? ?].
+  + split; auto.
+  + exists H; auto.
+Qed.
+
 Definition Intersection_MSet {Omega: measurable_subspace} (A B: measurable_set Omega): measurable_set Omega :=
   measurable_set_inv (sigma_algebra.Intersection_MSet _ (measurable_set_inj A) (measurable_set_inj B)).
 
+Lemma Intersection_spec: forall {Omega: measurable_subspace} (A B: measurable_set Omega) x, Intersection_MSet A B x <-> A x /\ B x.
+Proof.
+  intros.
+  unfold Intersection_MSet.
+  rewrite measurable_set_inv_spec.
+  split; intros [? ?].
+  + simpl in H.
+    rewrite Intersection_spec in H; destruct H.
+    split; split; auto.
+  + destruct H, H0.
+    exists H1.
+    split; auto.
+Qed.
+
 Definition Union_MSet {Omega: measurable_subspace} (A B: measurable_set Omega): measurable_set Omega :=
   measurable_set_inv (sigma_algebra.Union_MSet _ (measurable_set_inj A) (measurable_set_inj B)).
+
+Lemma Union_spec: forall {Omega: measurable_subspace} (A B: measurable_set Omega) x, Union_MSet A B x <-> A x \/ B x.
+Proof.
+  intros.
+  unfold Union_MSet.
+  rewrite measurable_set_inv_spec.
+  split.
+  + intros [? ?].
+    simpl in H.
+    rewrite Union_spec in H; destruct H; [left | right]; split; auto.
+  + intros [? | ?].
+    - destruct H.
+      exists H0.
+      left; auto.
+    - destruct H.
+      exists H0.
+      right; auto.
+Qed.
 
 Context {PrF: ProbabilityMeasureFamily U}.
 

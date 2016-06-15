@@ -7,18 +7,16 @@ Require Import RndHoare.regular_conditional_prob.
 
 Class HistoryBasedSigF (ora: RandomOracle) {SFo: SigmaAlgebraFamily RandomHistory} := {
   measurable_subspace_legal: forall P, is_measurable_subspace P -> LegalHistoryAntiChain P;
+  RandomVarDomain := PrFamily.measurable_subspace;
+  RandomVarDomain_HistoryAntiChain (Omega: RandomVarDomain): HistoryAntiChain := Build_HistoryAntiChain _ (proj1_sig Omega) (measurable_subspace_legal _ (proj2_sig Omega));
   is_measurable_subspace_same_covered: forall P Q: HistoryAntiChain, same_covered_anti_chain P Q -> is_measurable_subspace P -> is_measurable_subspace Q;
-  is_measurable_set_same_covered: forall (O1 O2 P1 P2: HistoryAntiChain) H1 H2, Included P1 O1 -> Included P2 O2 -> same_covered_anti_chain O1 O2 -> same_covered_anti_chain P1 P2 -> PrFamily.is_measurable_set P1 (exist is_measurable_subspace O1 H1) -> PrFamily.is_measurable_set P2 (exist is_measurable_subspace O2 H2);
+  is_measurable_set_same_covered: forall (O1 O2: RandomVarDomain) (P1 P2: HistoryAntiChain), Included P1 (RandomVarDomain_HistoryAntiChain O1) -> Included P2 (RandomVarDomain_HistoryAntiChain O2) -> same_covered_anti_chain (RandomVarDomain_HistoryAntiChain O1) (RandomVarDomain_HistoryAntiChain O2) -> same_covered_anti_chain P1 P2 -> PrFamily.is_measurable_set P1 O1 -> PrFamily.is_measurable_set P2 O2;
   max_anti_chain_measurable: forall P, is_max_anti_chain P -> is_measurable_subspace P
 }.
 
 Section RandomVariable.
 
 Context {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory}.
-
-Definition RandomVarDomain {HBSFo: HistoryBasedSigF ora}: Type := PrFamily.measurable_subspace.
-
-Definition RandomVarDomain_HistoryAntiChain {HBSFo: HistoryBasedSigF ora} (Omega: RandomVarDomain): HistoryAntiChain := Build_HistoryAntiChain _ (proj1_sig Omega) (measurable_subspace_legal _ (proj2_sig Omega)).
 
 Global Coercion RandomVarDomain_HistoryAntiChain: RandomVarDomain >-> HistoryAntiChain.
 
@@ -96,6 +94,24 @@ Record HeredRandomVariable (A: Type) {SA: SigmaAlgebra A}: Type := {
 
 End RandomVariable.
 
+Module RV.
+
+Section RV.
+
+Context {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory}  {HBSFo: HistoryBasedSigF ora}.
+
+Lemma PreImage_spec: forall {Omega: RandomVarDomain} {B: Type} {SB: SigmaAlgebra B} (f: RandomVariable Omega B) (P: sigma_algebra.measurable_set B) (h: RandomHistory), (PrFamily.PreImage_MSet f P: MeasurableSubset Omega) h <-> Omega h /\ forall b, f h b -> P b.
+Proof. intros. apply PrFamily.PreImage_spec; auto. Qed.
+
+Lemma Intersection_spec: forall {Omega: RandomVarDomain} (A B: MeasurableSubset Omega) (h: RandomHistory), (PrFamily.Intersection_MSet A B: MeasurableSubset Omega) h <-> A h /\ B h.
+Proof. intros. apply PrFamily.Intersection_spec. Qed.
+
+Lemma Union_spec: forall {Omega: RandomVarDomain} (A B: MeasurableSubset Omega) (h: RandomHistory), (PrFamily.Union_MSet A B: MeasurableSubset Omega) h <-> A h \/ B h.
+Proof. intros. apply PrFamily.Union_spec. Qed.
+
+End RV.
+
+End RV.
 (*
 Definition filter_var {ora: RandomOracle} {A: Type} (filter: RandomHistory -> Prop) (v: RandomVariable A): RandomVariable A.
   refine (Build_RandomVariable _ _

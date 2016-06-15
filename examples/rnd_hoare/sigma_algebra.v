@@ -8,6 +8,17 @@ Definition unsig_Set {U: Type} {P: U -> Prop} (A: Ensemble {x: U | P x}): Ensemb
 
 Definition sig_Set {U: Type} (Q P: Ensemble U): Ensemble {x: U | P x} := fun x => Q (proj1_sig x).
 
+Lemma sig_Set_equiv: forall {U} (Q1 Q2 P: Ensemble U), Same_set (Intersection _ Q1 P) (Intersection _ Q2 P) -> Same_set (sig_Set Q1 P) (sig_Set Q2 P).
+Proof.
+  clear.
+  intros.
+  rewrite Same_set_spec; intros [x ?H].
+  unfold sig_Set; simpl.
+  rewrite Same_set_spec in H; specialize (H x).
+  rewrite !Intersection_spec in H.
+  tauto.
+Qed.
+
 Class SigmaAlgebra (Omega: Type): Type := {
   is_measurable_set: Ensemble Omega -> Prop;
   is_measurable_set_proper: Proper (Same_set ==> iff) is_measurable_set;
