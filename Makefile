@@ -123,7 +123,6 @@ SEPCOMP_FILES= \
   wholeprog_lemmas.v \
   barebones_simulations.v
   #safety_preservation.v \
-
 CONCUR_FILES= \
   addressFiniteMap.v\
   sepcomp.v threads_lemmas.v permissions.v\
@@ -278,7 +277,7 @@ else
 	@$(COQC) $(COQFLAGS) $*.v
 endif
 
-COQVERSION= 8.5pl1
+COQVERSION=8.4pl5 or-else 8.4pl6
 COQV=$(shell $(COQC) -v)
 ifeq ("$(filter $(COQVERSION),$(COQV))","")
 $(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
