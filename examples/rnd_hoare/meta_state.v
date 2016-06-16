@@ -1,3 +1,4 @@
+Require Import RamifyCoq.lib.List_ext.
 Require Import RndHoare.sigma_algebra.
 Require Import RndHoare.measurable_function.
 Require Import RndHoare.regular_conditional_prob.
@@ -297,7 +298,8 @@ Lemma limit_domain_anti_chain_hered: forall (Omegas: RandomVarDomainStream) (n: 
   prefix_history h h_limit /\ limit_domain_anti_chain Omegas h_limit.
 Proof.
   intros.
-  destruct (classic (exists l, prefix_history h (fin_history l) /\ forall n0, covered_by (fin_history l) (Omegas n0))).
+  destruct (classic (exists l, prefix_history h (fin_history l) /\ forall n0, covered_by (fin_history l) (Omegas n0)));
+  [| destruct (classic (exists init, h = fin_history init))].
   + (* when h_limit is finite *)
     destruct H0 as [l ?].
     pose proof 
@@ -315,9 +317,28 @@ Proof.
 
     assert (exists n0, Omegas n0 (fin_history l)) as HH; [| destruct HH as [n0 ?]].
     Focus 1. {
-      destruct (classic (exists n0, (Omegas n0) (fin_history l))); auto; exfalso.
-      
-      admit. (* TODO *)
+      destruct (cons_tail_dec l) as [? | [l0 [qa ?]]].
+      + exists 0.
+        subst l; destruct (H2 0) as [h' [? ?]].
+        assert (h' = fin_history nil); [| subst; auto].
+        clear - H4; history_extensionality n.
+        specialize (H4 n); simpl in *.
+        destruct H4, n; auto.
+      + destruct (classic (exists n0, (Omegas n0) (fin_history l))); auto; exfalso.
+        subst l m; rename l0 into l.
+        specialize (H3 (length l)).
+        assert (~ length (l +:: qa) <= length l) by (rewrite app_length; simpl; omega).
+        apply H0, H3; clear H0 H3.
+        exists l.
+        split; auto.
+        split.
+        - eapply prefix_not_equal_history_backward; eauto.
+          intro; apply H4; exists n; subst h; auto.
+        - intros n0; specialize (H2 n0).
+          destruct H2 as [h' [? ?]].
+          exists h'; split; auto.
+          eapply prefix_not_equal_history_backward; eauto.
+          intro; apply H4; exists n0; subst h'; auto.
     } Unfocus.
     hnf; intros.
     exists (max (S n1) n0), (fin_history l).
@@ -335,8 +356,71 @@ Proof.
     subst h.
     auto.
 
-  + (* when h_limit is infinite *)
-    admit. (* TODO *)
+  + (* when h is finite but h_limit is infinite *)
+    destruct H1 as [init ?]; subst h.
+    pose proof (not_ex_all_not _ _ H0); clear H0; rename H1 into H0; simpl in H0.
+    set (P h := prefix_history (fin_history init) h /\ exists n0 h1 h2, (Omegas n0) h1 /\ (Omegas (S n0)) h2 /\ prefix_history h1 h /\ prefix_history h h2 /\ h <> h2).
+    assert (forall n l, Omegas n (fin_history l) -> prefix_history (fin_history init) (fin_history l) -> P (fin_history l)) as STRENTHEN; [| destruct (inf_history_construction P init) as [h [? ?]]].
+    Focus 1. {
+      clear n H.
+      intros.
+      destruct (dec_inh_nat_subset_has_unique_least_element (fun n0 => n0 > n /\ ~ (Omegas n0) (fin_history l)) (fun n => classic (_ n))) as [n0 [[? ?] _]].
+      + specialize (H0 l).
+        destruct (classic (exists n0 , n0 > n /\ ~ (Omegas n0) (fin_history l))); auto.
+        exfalso.
+        apply H0; split; auto.
+        intros.
+        destruct (lt_dec n n0).
+        - exists (fin_history l); split; [apply prefix_history_refl |].
+          destruct (classic ((Omegas n0) (fin_history l))); auto.
+          exfalso; apply H2; exists n0; auto.
+        - apply (RandomVarDomainStream_mono Omegas n0 n); auto; omega.
+      + destruct H2.
+        destruct n0 as [| n0]; [omega |].
+        assert (Omegas n0 (fin_history l)).
+        Focus 1. {
+          specialize (H1 n0).
+          destruct (classic ((Omegas n0) (fin_history l))); auto; exfalso.
+          assert (~ S n0 <= n0) as HH by omega; apply HH, H3; clear HH H3.
+          split; auto.
+          destruct (NPeano.Nat.eq_dec n n0); [| omega].
+          subst n0; exfalso; auto.
+        } Unfocus.
+        split; auto.
+        destruct (RandomVarDomainStream_hered Omegas n0 (S n0) (fin_history l) (le_n_Sn _) H5) as [h2 [? ?]].
+        exists n0, (fin_history l), h2.
+        split; [| split; [| split; [| split]]]; auto.
+        - apply prefix_history_refl.
+        - intro; subst h2; auto.
+    } Unfocus.
+    Focus 1. {
+      apply (STRENTHEN n); auto.
+      apply prefix_history_refl.
+    } Unfocus.
+    Focus 1. {
+      clear H n.
+      intros.
+      destruct H as [? [n0 [h1 [h2 [? [? [? [? ?]]]]]]]].
+      destruct (prefix_not_equal_history_forward h2 l H4 H5) as [qa ?].
+      exists qa.
+      destruct (classic ((fin_history (l +:: qa)) = h2)).
+      + subst h2.
+        apply (STRENTHEN (S n0) (l +:: qa)); auto.
+        eapply prefix_history_trans; eauto; apply prefix_history_fin_app.
+      + split; [eapply prefix_history_trans; eauto; apply prefix_history_fin_app |].
+        exists n0, h1, h2; split; [| split; [| split; [| split]]]; auto.
+        eapply prefix_history_trans; eauto; apply prefix_history_fin_app.
+    } Unfocus.
+    Focus 1. {
+      exists h.
+      split.
+      + specialize (H2 (length init)); destruct H2 as [? _]; [omega |].
+        eapply prefix_history_trans; eauto.
+        apply fstn_history_prefix.
+      + hnf; intros.
+        admit. (* TODO *)
+    } Unfocus.
+  + admit.
 Qed.
 
 Lemma limit_domain_anti_chain_covered_backward: forall (Omegas: RandomVarDomainStream) h,

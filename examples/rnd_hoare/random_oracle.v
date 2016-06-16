@@ -15,6 +15,31 @@ Proof.
     omega.
 Qed.
 
+(* These three lemmas are copied from veric/assert_lemmas.v and veric/initial_world.v *)
+Lemma nth_error_in_bounds: forall {A} (l: list A) i, (O <= i < length l)%nat
+  -> exists x, nth_error l i = value x.
+Proof.
+intros until i; intros H.
+revert i l H.
+induction i; destruct l; intros; simpl in *;
+  try solve [eauto | omega].
+apply IHi; omega.
+Qed.
+
+Lemma nth_error_app: forall {T} (al bl : list T) (j: nat),
+     nth_error (al++bl) (length al + j) = nth_error bl j.
+Proof.
+ intros. induction al; simpl; auto.
+Qed.
+
+Lemma nth_error_app1: forall {T} (al bl : list T) (j: nat),
+     (j < length al)%nat ->
+     nth_error (al++bl) j = nth_error al j.
+Proof.
+  intros. revert al H; induction j; destruct al; simpl; intros; auto; try omega.
+   apply IHj. omega.
+Qed.
+
 Class RandomOracle: Type := {
   ro_question: Type;
   ro_answer: ro_question -> Type;
@@ -726,6 +751,98 @@ Proof.
   + left; eapply strict_conflict_backward_conflict_right; eauto.
 Qed.
 
+Lemma prefix_not_equal_history_backward {ora: RandomOracle}: forall h l qa, prefix_history h (fin_history (l ++ qa :: nil)) -> h <> (fin_history (l ++ qa :: nil)) -> prefix_history h (fin_history l).
+Proof.
+  intros.
+  hnf; intros.
+  destruct (lt_eq_lt_dec n (length l)) as [[? | ?] | ?].
+  + specialize (H n).
+    simpl in H |- *.
+    rewrite nth_error_app1 in H by auto.
+    auto.
+  + left.
+    destruct (H n); auto.
+    pattern n at 2 in H1.
+    replace n with (length l + 0) in H1 by omega.
+    simpl in H1; rewrite nth_error_app in H1.
+    simpl in H1.
+    exfalso.
+    apply H0.
+    history_extensionality m.
+    destruct (le_dec (S n) m).
+    - destruct (H m); auto.
+      simpl.
+      rewrite H2; symmetry; apply nth_error_None_iff.
+      rewrite app_length; simpl. omega.
+    - destruct (H m); auto.
+      exfalso.
+      assert (m <= n) by omega.
+      pose proof history_sound1 h m n H3 H2.
+      rewrite H4 in H1; inversion H1.
+  + left.
+    destruct (H n); auto.
+    simpl in H1.
+    rewrite H1.
+    apply nth_error_None_iff.
+    rewrite app_length; simpl; omega.
+Qed.
+
+Lemma prefix_not_equal_history_forward {ora: RandomOracle}: forall h l, prefix_history (fin_history l) h -> (fin_history l) <> h -> exists qa, prefix_history (fin_history (l ++ qa :: nil)) h.
+Proof.
+  intros.
+  assert ((fin_history l) (length l) = None) by (apply nth_error_None_iff; omega).
+  assert ((fin_history l) (length l) <> h (length l)).
+  Focus 1. {
+    intro.
+    apply H0; history_extensionality n.
+    destruct (le_dec (length l) n).
+    + destruct (H n); auto.
+      rewrite H2 in H1; symmetry in H1.
+      rewrite H3; symmetry.
+      apply (history_sound1 h (length l) n); auto.
+    + destruct (H n); auto.
+      exfalso.
+      simpl in H3.
+      destruct (nth_error_in_bounds l n); [omega |].
+      rewrite H3 in H4; inversion H4.
+  } Unfocus.
+  destruct (h (length l)) eqn:?H; [| congruence]. clear H2.
+  exists r.
+  hnf; intros.
+  destruct (lt_eq_lt_dec n (length l)) as [[? | ?] | ?].
+  + specialize (H n).
+    simpl in H |- *.
+    rewrite nth_error_app1 by auto.
+    auto.
+  + subst n; simpl.
+    right.
+    replace (length l) with (length l + 0) at 1 by omega.
+    rewrite nth_error_app; simpl.
+    symmetry; auto.
+  + left.
+    apply nth_error_None_iff.
+    rewrite app_length; simpl; omega.
+Qed.
+
+Lemma prefix_history_fin_app {ora: RandomOracle}: forall l1 l2, prefix_history (fin_history l1) (fin_history (l1 ++ l2)).
+Proof.
+  intros.
+  hnf; intros.
+  destruct (le_dec (length l1) n).
+  + replace ((fin_history l1) n) with (@None RandomQA) by (symmetry; apply nth_error_None_iff; omega).
+    left; auto.
+  + right.
+    simpl.
+    rewrite nth_error_app1; auto.
+    omega.
+Qed.
+
+Lemma is_fin_inf_dec {ora: RandomOracle}: forall h: RandomHistory, (exists l, h = fin_history l) \/ (exists f, h = inf_history f).
+Proof.
+  intros.
+  admit. (* TODO *)
+Qed.
+    
 (* TODO: put this in lib *)
 Definition isSome {A} (o: option A) := match o with Some _ => True | None => False end.
 
@@ -1143,31 +1260,6 @@ Proof.
   + destruct m; [simpl in H; omega |].
     rewrite IHl by (simpl in H; omega).
     f_equal.
-Qed.
-
-(* These three lemmas are copied from veric/assert_lemmas.v and veric/initial_world.v *)
-Lemma nth_error_in_bounds: forall {A} (l: list A) i, (O <= i < length l)%nat
-  -> exists x, nth_error l i = value x.
-Proof.
-intros until i; intros H.
-revert i l H.
-induction i; destruct l; intros; simpl in *;
-  try solve [eauto | omega].
-apply IHi; omega.
-Qed.
-
-Lemma nth_error_app: forall {T} (al bl : list T) (j: nat),
-     nth_error (al++bl) (length al + j) = nth_error bl j.
-Proof.
- intros. induction al; simpl; auto.
-Qed.
-
-Lemma nth_error_app1: forall {T} (al bl : list T) (j: nat),
-     (j < length al)%nat ->
-     nth_error (al++bl) j = nth_error al j.
-Proof.
-  intros. revert al H; induction j; destruct al; simpl; intros; auto; try omega.
-   apply IHj. omega.
 Qed.
 
 Lemma length_firstn_list_from_fun: forall {A} (f: nat -> A) n, length (fisrtn_list_from_fun f n) = n.
