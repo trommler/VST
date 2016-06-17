@@ -1,5 +1,8 @@
 Require Import Coq.Sets.Ensembles.
 Require Import RndHoare.random_oracle.
+Require Import RndHoare.random_history_order.
+Require Import RndHoare.random_history_conflict.
+Require Import RndHoare.history_anti_chain.
 Require Import RndHoare.max_anti_chain.
 Require Import RndHoare.sigma_algebra.
 Require Import RndHoare.measurable_function.

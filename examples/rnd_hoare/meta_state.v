@@ -3,6 +3,9 @@ Require Import RndHoare.sigma_algebra.
 Require Import RndHoare.measurable_function.
 Require Import RndHoare.regular_conditional_prob.
 Require Import RndHoare.random_oracle.
+Require Import RndHoare.random_history_order.
+Require Import RndHoare.random_history_conflict.
+Require Import RndHoare.history_anti_chain.
 Require Import RndHoare.random_variable.
 Require Import Coq.Classes.Equivalence.
 Require Import Coq.Classes.Morphisms.
@@ -114,7 +117,8 @@ Definition non_branch_tstate {state: Type} {state_sigma: SigmaAlgebra state} (s:
   apply PrFamily.rf_sound in H0.
   specialize (H0 0); simpl in H0.
   specialize (H 0).
-  rewrite <- H0 in H; apply H; auto.
+  rewrite <- H0 in H; apply H.
+  apply empty_history_spec.
 Defined.
 
 Definition Terminating_raw_domain {Omega: RandomVarDomain} {state: Type} {state_sigma: SigmaAlgebra state} (s: ProgState Omega state): MeasurableSubset Omega :=
@@ -144,6 +148,7 @@ Global Coercion raw_direction: ConvergeDir >-> Funclass.
 
 Definition ProgStateStream (Omegas: RandomVarDomainStream) (state: Type) {state_sigma: SigmaAlgebra state}: Type := forall n: nat, ProgState (Omegas n) state.
 
+(*
 Definition is_limit_domain (Omegas: RandomVarDomainStream) (lim_Omega: RandomVarDomain) : Prop :=
   forall h,
     lim_Omega h <->
@@ -158,20 +163,19 @@ Definition is_limit {Omegas: RandomVarDomainStream} {lim_Omega: RandomVarDomain}
        forall n h_low, is_fin_history h_low -> prefix_history h_low h ->
          exists n' h', n' > n /\ prefix_history h_low h' /\ prefix_history h' h /\ dir n' h').
 
+*)
 Definition limit_raw_domain (Omegas: RandomVarDomainStream): RandomHistory -> Prop :=
-  fun h =>
-    forall n h_low, is_fin_history h_low -> prefix_history h_low h ->
-      exists n' h', n' > n /\ prefix_history h_low h' /\ prefix_history h' h /\ Omegas n' h'.
+  fun h => forall n m, exists n' h', n' > n /\ prefix_history (fstn_history m h) h' /\ prefix_history h' h /\ Omegas n' h'.
 
 Lemma RandomVarDomainStream_stable: forall (Omegas: RandomVarDomainStream) (dir: ConvergeDir Omegas) (n: nat) h,
   Omegas n h ->
-  (forall m, m >= n -> ~ dir m h) ->
-  (forall m, m >= n -> Omegas m h).
+  (forall n0, n0 >= n -> ~ dir n0 h) ->
+  (forall n0, n0 >= n -> Omegas n0 h).
 Proof.
   intros.
-  remember (m - n) as Delta eqn:?H.
-  assert (m = Delta + n) by omega.
-  clear H1 H2; subst m.
+  remember (n0 - n) as Delta eqn:?H.
+  assert (n0 = Delta + n) by omega.
+  clear H1 H2; subst n0.
   induction Delta; auto.
 
   pose proof rdir_slow _ dir (Delta + n) h IHDelta.
@@ -224,6 +228,72 @@ Proof.
   + apply RandomVarDomainStream_mono; auto.
 Qed.
 
+Lemma RandomVarDomainStream_non_conflict_inf_hered: forall (Omegas: RandomVarDomainStream) (n: nat) h m,
+  (Omegas n) h ->
+  is_n_history m h ->
+  exists h1,
+    is_inf_history h1 /\
+    prefix_history h h1 /\
+    (forall n0, exists h2, prefix_history h2 h1 /\ (Omegas n0) h2).
+Proof.
+  intros.
+  assert (exists h1,
+    is_inf_history h1 /\
+    prefix_history h h1 /\
+    (forall m0, m <= m0 -> forall n0, exists h2, (prefix_history h2 (fstn_history m0 h1) \/ prefix_history (fstn_history m0 h1) h2) /\ (Omegas n0) h2)).
+  + apply (inf_history_construction (fun h => forall n0, exists h', (prefix_history h' h \/ prefix_history h h') /\ Omegas n0 h') h m).
+    - intros.
+      destruct (le_dec n n0) as [?H | ?H].
+      * destruct (RandomVarDomainStream_hered Omegas _ _ _ H1 H) as [h' [? ?]].
+        exists h'; auto.
+      * destruct (fun HH => RandomVarDomainStream_mono Omegas n0 n HH h H) as [h' [? ?]]; [omega |].
+        exists h'; auto.
+    - auto.
+    - intros.
+      destruct (classic (exists n0, ~ exists h', prefix_history h' h0 /\ Omegas n0 h')).
+      * pose proof dec_inh_nat_subset_has_unique_least_element _ (fun n => classic (_ n)) H3.
+        clear H3; destruct H4 as [n0 [[? ?] _]].
+        destruct (H1 n0) as [h1 [? ?]].
+        destruct H5; [exfalso; apply H3; exists h1; auto |].
+        assert (h0 <> h1) by (intro; subst h1; apply H3; exists h0; split; auto; apply prefix_history_refl).
+        admit.
+      * exists (existT _ ro_default_question ro_default_answer).
+        intros.
+        pose proof not_ex_not_all _ _ H3; clear H1 H3; cbv beta in H4.
+        destruct (H4 n0) as [h' [? ?]]; exists h'.
+        split; auto.
+        left.
+        eapply prefix_history_trans; [eassumption | apply prefix_app_history].
+  + destruct H1 as [h1 [? [? ?]]].
+    exists h1; split; [| split]; auto.
+    intros.
+    pose proof proj1 (RandomVarDomainStream_same_covered Omegas n n0 _ H1).
+    specialize (H4 (ex_intro _ h (conj (or_introl H2) H))).
+    destruct H4 as [h2 [? ?]].
+    exists h2; split; auto.
+    destruct H4; auto.
+
+    destruct H4 as [m0 [? ?]].
+    specialize (H3 (max (S m0) m) (Max.le_max_r _ _) n0).
+    assert (strict_conflict_history h2 (fstn_history (max (S m0) m) h1)).
+    Focus 1. {
+      exists m0; split.
+      + apply history_coincide_trans with h1; auto.
+        apply history_coincide_weaken with (max (S m0) m); [pose proof Max.le_max_l (S m0) m; omega |].
+        apply fstn_history_coincide.
+      + rewrite fstn_history_Some by (pose proof Max.le_max_l (S m0) m; omega).
+        auto.
+    } Unfocus.
+    destruct H3 as [h3 [[? | ?] ?]].
+    - exfalso.
+      pose proof strict_conflict_backward_conflict_right _ _ _ H7 H3.
+      apply (@rand_consi _ _ (raw_anti_chain_legal _) _ _ H9 H5 H8).
+    - pose proof strict_conflict_forward_right _ _ _ H7 H3.
+      apply strict_conflict_conflict in H9.
+      exfalso.
+      apply (@rand_consi _ _ (raw_anti_chain_legal _) _ _ H9 H5 H8).
+Qed.
+
 Definition MeasurableSubset_stream_proj (Omegas: RandomVarDomainStream) (n: nat) (P: MeasurableSubset (Omegas n)): MeasurableSubset (Omegas (S n)).
   exists (filter_anti_chain (fun h => covered_by h P) (Omegas (S n))).
   apply is_measurable_set_same_covered with (O1 := Omegas n) (P1 := P).
@@ -242,8 +312,7 @@ Lemma limit_raw_domain_covered: forall (Omegas: RandomVarDomainStream) h n, limi
 Proof.
   intros.
   rename h into h_limit.
-  assert (prefix_history (fin_history nil) h_limit) by (hnf; intros [|]; left; auto).
-  specialize (H n (fin_history nil) (fin_history_fin _) H0); clear H0.
+  specialize (H n 0).
   destruct H as [n0 [h0 [? [? [? ?]]]]].
   
   destruct (fun HH => RandomVarDomainStream_mono Omegas n n0 HH h0 H2) as [h [? ?]]; [omega |].
@@ -257,37 +326,110 @@ Proof.
   intros.
   constructor.
   hnf; intros.
-  destruct H as [n [? ?]].
-  destruct (H0 0 (fstn_history (S n) h1) (fstn_history_finite _ _) (fstn_history_prefix _ _)) as [m1 [h1' [? [? [? ?]]]]].
-  destruct (H1 0 (fstn_history (S n) h2) (fstn_history_finite _ _) (fstn_history_prefix _ _)) as [m2 [h2' [? [? [? ?]]]]].
-  
-  destruct (raw_anti_chain_legal (Omegas (max m1 m2))) as [?H].
-  destruct (limit_raw_domain_covered Omegas h1 (max m1 m2) H0) as [h1'' [? ?]].
-  destruct (limit_raw_domain_covered Omegas h2 (max m1 m2) H1) as [h2'' [? ?]].
+  destruct H as [m [? ?]].
+  destruct (H0 0 (S m)) as [n1 [h1' [? [? [? ?]]]]].
+  destruct (H1 0 (S m)) as [n2 [h2' [? [? [? ?]]]]].
 
-  assert (prefix_history (fstn_history (S n) h1) h1'').
+  destruct (raw_anti_chain_legal (Omegas (max n1 n2))) as [?H].
+  destruct (limit_raw_domain_covered Omegas h1 (max n1 n2) H0) as [h1'' [? ?]].
+  destruct (limit_raw_domain_covered Omegas h2 (max n1 n2) H1) as [h2'' [? ?]].
+
+  assert (prefix_history (fstn_history (S m) h1) h1'').
   Focus 1. {
     apply prefix_history_trans with h1'; auto.
-    apply (proj_in_anti_chain_unique (Omegas m1) h1' h1'' h1); auto.
-    apply (RandomVarDomainStream_mono Omegas m1 (max m1 m2)); auto.
+    apply (proj_in_anti_chain_unique (Omegas n1) h1' h1'' h1); auto.
+    apply (RandomVarDomainStream_mono Omegas n1 (max n1 n2)); auto.
     apply Max.le_max_l.
   } Unfocus.
 
-  assert (prefix_history (fstn_history (S n) h2) h2'').
+  assert (prefix_history (fstn_history (S m) h2) h2'').
   Focus 1. {
     apply prefix_history_trans with h2'; auto.
-    apply (proj_in_anti_chain_unique (Omegas m2) h2' h2'' h2); auto.
-    apply (RandomVarDomainStream_mono Omegas m2 (max m1 m2)); auto.
+    apply (proj_in_anti_chain_unique (Omegas n2) h2' h2'' h2); auto.
+    apply (RandomVarDomainStream_mono Omegas n2 (max n1 n2)); auto.
     apply Max.le_max_r.
   } Unfocus.
 
-  clear h1' h2' H4 H5 H6 H8 H9 H10.
-  
   apply (H11 h1'' h2''); auto.
-  exists n.
-  rewrite <- (n_conflict_proper_aux n h1 h1'' h2 h2''); auto.
+  exists m.
+  rewrite <- (n_conflict_proper_aux m h1 h1'' h2 h2''); auto.
   + apply squeeze_history_coincide; auto.
   + apply squeeze_history_coincide; auto.
+Qed.
+
+Lemma prefix_in_every_layer_prefix_in_limit: forall (Omegas: RandomVarDomainStream) h,
+  is_inf_history h ->
+  (forall n, exists h', prefix_history h' h /\ Omegas n h') ->
+  exists h', prefix_history h' h /\ limit_raw_domain Omegas h'.
+Proof.
+  intros.
+  destruct (classic (exists m, forall n, exists h', prefix_history h' (fstn_history m h) /\ Omegas n h')).
+  + pose proof 
+      dec_inh_nat_subset_has_unique_least_element _ (fun n => classic (_ n)) H1.
+    clear H1; destruct H2 as [m [[? ?] _]].
+    exists (fstn_history m h).
+    split; [apply fstn_history_prefix |].
+    assert (exists n, Omegas n (fstn_history m h)).
+    Focus 1. {
+      destruct m.
+      + exists 0.
+        destruct (H1 0) as [h' [? ?]].
+        replace (fstn_history 0 h) with h'; auto.
+        clear - H3.
+        history_extensionality n; specialize (H3 n).
+        destruct H3; auto.
+        rewrite fstn_history_None; auto; omega.
+      + apply NNPP; intro.
+        specialize (H2 m).
+        assert (~ S m <= m) as HH by omega; apply HH, H2; clear HH H2.
+        intros n; specialize (H1 n); destruct H1 as [h' [? ?]].
+        exists h'; split; auto.
+        destruct (classic (h' = (fstn_history (S m) h))).
+        - subst h'; exfalso.
+          apply H3; exists n; auto.
+        - apply prefix_not_equal_fstn_Sn; auto.
+    } Unfocus.
+    clear H2.
+    destruct H3 as [n ?].
+    hnf; intros.
+    exists (max (S n0) n), (fstn_history m h).
+    split; [| split; [| split]]; auto.
+    - pose proof Max.le_max_l (S n0) n; omega.
+    - apply fstn_history_prefix.
+    - apply prefix_history_refl.
+    - specialize (H1 (max (S n0) n)).
+      destruct H1 as [h' [? ?]].
+      destruct (RandomVarDomainStream_mono Omegas n (max (S n0) n) (Max.le_max_r _ _) _ H3) as [h'' [? ?]].
+      pose proof prefix_history_trans _ _ _ H4 H1.
+      pose proof anti_chain_not_comparable _ _ _ H5 H2 H6.
+      subst h''.
+      pose proof prefix_history_anti_sym _ _ H1 H4.
+      subst h'.
+      auto.
+  + exists h.
+    split; [apply prefix_history_refl |].
+    hnf; intros.
+    assert (exists n', n' > n /\ ~ exists h', prefix_history h' (fstn_history m h) /\ (Omegas n') h').
+    Focus 1. {
+      pose proof not_ex_all_not _ _ H1 m.
+      clear H1; simpl in H2.
+      pose proof not_all_ex_not _ _ H2; clear H2.
+      destruct H1 as [n0 ?].
+      exists (max (S n) n0).
+      split; [pose proof Max.le_max_l (S n) n0; omega |].
+      intro; apply H1; clear H1.
+      destruct H2 as [h' [? ?]].
+      destruct (RandomVarDomainStream_mono Omegas n0 _ (Max.le_max_r _ _) _ H2) as [h'' [? ?]].
+      exists h''; split; auto.
+      eapply prefix_history_trans; eauto.
+    } Unfocus.
+    destruct H2 as [n0 [? ?]].
+    specialize (H0 n0); destruct H0 as [h0 [? ?]].
+    pose proof prefix_history_comparable _ _ _ H0 (fstn_history_prefix m h).
+    destruct H5.
+    - exfalso.
+      apply H3; exists h0; split; auto.
+    - exists n0, h0; split; [| split]; auto.
 Qed.
 
 Definition limit_domain_anti_chain (Omegas: RandomVarDomainStream): HistoryAntiChain := Build_HistoryAntiChain _ (limit_raw_domain Omegas) (limit_raw_domain_legal Omegas).
@@ -298,129 +440,32 @@ Lemma limit_domain_anti_chain_hered: forall (Omegas: RandomVarDomainStream) (n: 
   prefix_history h h_limit /\ limit_domain_anti_chain Omegas h_limit.
 Proof.
   intros.
-  destruct (classic (exists l, prefix_history h (fin_history l) /\ forall n0, covered_by (fin_history l) (Omegas n0)));
-  [| destruct (classic (exists init, h = fin_history init))].
-  + (* when h_limit is finite *)
-    destruct H0 as [l ?].
-    pose proof 
-      dec_inh_nat_subset_has_unique_least_element
-        (fun m =>
-           exists l0, length l0 = m /\
-             prefix_history h (fin_history l0) /\
-             forall n0, covered_by (fin_history l0) (Omegas n0))
-        (fun n => classic (_ n))
-        (ex_intro _ (length l) (ex_intro _ l (conj (@eq_refl _ (length l)) H0))).
-    clear H0 l.
-    destruct H1 as [m [[[l [? [? ?]]] ?] _]].
-    exists (fin_history l).
-    split; auto.
-
-    assert (exists n0, Omegas n0 (fin_history l)) as HH; [| destruct HH as [n0 ?]].
-    Focus 1. {
-      destruct (cons_tail_dec l) as [? | [l0 [qa ?]]].
-      + exists 0.
-        subst l; destruct (H2 0) as [h' [? ?]].
-        assert (h' = fin_history nil); [| subst; auto].
-        clear - H4; history_extensionality n.
-        specialize (H4 n); simpl in *.
-        destruct H4, n; auto.
-      + destruct (classic (exists n0, (Omegas n0) (fin_history l))); auto; exfalso.
-        subst l m; rename l0 into l.
-        specialize (H3 (length l)).
-        assert (~ length (l +:: qa) <= length l) by (rewrite app_length; simpl; omega).
-        apply H0, H3; clear H0 H3.
-        exists l.
-        split; auto.
-        split.
-        - eapply prefix_not_equal_history_backward; eauto.
-          intro; apply H4; exists n; subst h; auto.
-        - intros n0; specialize (H2 n0).
-          destruct H2 as [h' [? ?]].
-          exists h'; split; auto.
-          eapply prefix_not_equal_history_backward; eauto.
-          intro; apply H4; exists n0; subst h'; auto.
-    } Unfocus.
-    hnf; intros.
-    exists (max (S n1) n0), (fin_history l).
-    split; [pose proof Max.le_max_l (S n1) n0; omega |].
-    split; [auto |].
-    split; [apply prefix_history_refl |].
-
-    clear - H2 H4.
-    specialize (H2 (max (S n1) n0)); destruct H2 as [h [? ?]].
-    destruct (RandomVarDomainStream_mono Omegas n0 (max (S n1) n0) (Max.le_max_r _ _) h H0) as [h0 [? ?]].
-    assert (prefix_history h0 (fin_history l)) by (apply prefix_history_trans with h; auto).
-    pose proof anti_chain_not_comparable (Omegas n0) _ _ H2 H4 H3.
-    subst h0.
-    pose proof prefix_history_anti_sym _ _ H H1.
-    subst h.
-    auto.
-
-  + (* when h is finite but h_limit is infinite *)
-    destruct H1 as [init ?]; subst h.
-    pose proof (not_ex_all_not _ _ H0); clear H0; rename H1 into H0; simpl in H0.
-    set (P h := prefix_history (fin_history init) h /\ exists n0 h1 h2, (Omegas n0) h1 /\ (Omegas (S n0)) h2 /\ prefix_history h1 h /\ prefix_history h h2 /\ h <> h2).
-    assert (forall n l, Omegas n (fin_history l) -> prefix_history (fin_history init) (fin_history l) -> P (fin_history l)) as STRENTHEN; [| destruct (inf_history_construction P init) as [h [? ?]]].
-    Focus 1. {
-      clear n H.
+  assert (exists h1, is_inf_history h1 /\ prefix_history h h1 /\
+            (forall n, exists h2, prefix_history h2 h1 /\ Omegas n h2)).
+  Focus 1. {
+    destruct (n_history_inf_history_decT h) as [[m ?H] | ?H].
+    + apply (RandomVarDomainStream_non_conflict_inf_hered Omegas n h m); auto.
+    + exists h.
+      split; [auto | split; [apply prefix_history_refl |]].
       intros.
-      destruct (dec_inh_nat_subset_has_unique_least_element (fun n0 => n0 > n /\ ~ (Omegas n0) (fin_history l)) (fun n => classic (_ n))) as [n0 [[? ?] _]].
-      + specialize (H0 l).
-        destruct (classic (exists n0 , n0 > n /\ ~ (Omegas n0) (fin_history l))); auto.
-        exfalso.
-        apply H0; split; auto.
-        intros.
-        destruct (lt_dec n n0).
-        - exists (fin_history l); split; [apply prefix_history_refl |].
-          destruct (classic ((Omegas n0) (fin_history l))); auto.
-          exfalso; apply H2; exists n0; auto.
-        - apply (RandomVarDomainStream_mono Omegas n0 n); auto; omega.
-      + destruct H2.
-        destruct n0 as [| n0]; [omega |].
-        assert (Omegas n0 (fin_history l)).
-        Focus 1. {
-          specialize (H1 n0).
-          destruct (classic ((Omegas n0) (fin_history l))); auto; exfalso.
-          assert (~ S n0 <= n0) as HH by omega; apply HH, H3; clear HH H3.
-          split; auto.
-          destruct (NPeano.Nat.eq_dec n n0); [| omega].
-          subst n0; exfalso; auto.
-        } Unfocus.
-        split; auto.
-        destruct (RandomVarDomainStream_hered Omegas n0 (S n0) (fin_history l) (le_n_Sn _) H5) as [h2 [? ?]].
-        exists n0, (fin_history l), h2.
-        split; [| split; [| split; [| split]]]; auto.
-        - apply prefix_history_refl.
-        - intro; subst h2; auto.
-    } Unfocus.
-    Focus 1. {
-      apply (STRENTHEN n); auto.
-      apply prefix_history_refl.
-    } Unfocus.
-    Focus 1. {
-      clear H n.
-      intros.
-      destruct H as [? [n0 [h1 [h2 [? [? [? [? ?]]]]]]]].
-      destruct (prefix_not_equal_history_forward h2 l H4 H5) as [qa ?].
-      exists qa.
-      destruct (classic ((fin_history (l +:: qa)) = h2)).
-      + subst h2.
-        apply (STRENTHEN (S n0) (l +:: qa)); auto.
-        eapply prefix_history_trans; eauto; apply prefix_history_fin_app.
-      + split; [eapply prefix_history_trans; eauto; apply prefix_history_fin_app |].
-        exists n0, h1, h2; split; [| split; [| split; [| split]]]; auto.
-        eapply prefix_history_trans; eauto; apply prefix_history_fin_app.
-    } Unfocus.
-    Focus 1. {
-      exists h.
-      split.
-      + specialize (H2 (length init)); destruct H2 as [? _]; [omega |].
-        eapply prefix_history_trans; eauto.
-        apply fstn_history_prefix.
-      + hnf; intros.
-        admit. (* TODO *)
-    } Unfocus.
-  + admit.
+      destruct (le_dec n n0) as [?H | ?H].
+      - destruct (RandomVarDomainStream_hered Omegas n n0 h H1 H) as [h3 [? ?]].
+        pose proof inf_history_prefix _ _ H0 H2.
+        subst h3.
+        exists h; auto.
+      - apply (fun HH => RandomVarDomainStream_mono Omegas n0 n HH _ H).
+        omega.
+  } Unfocus.
+  destruct H0 as [h1 [? [? ?]]].
+  destruct (prefix_in_every_layer_prefix_in_limit Omegas _ H0 H2) as [h2 [? ?]].
+  exists h2; split; auto.
+
+  pose proof prefix_history_comparable _ _ _ H1 H3.
+  destruct H5; auto.
+  pose proof limit_raw_domain_covered Omegas _ n H4.
+  destruct H6 as [h3 [? ?]].
+  pose proof anti_chain_not_comparable _ _ _ H7 H (prefix_history_trans _ _ _ H6 H5).
+  subst h3; auto.
 Qed.
 
 Lemma limit_domain_anti_chain_covered_backward: forall (Omegas: RandomVarDomainStream) h,
@@ -587,8 +632,8 @@ Proof.
   intros.
   simpl.
   apply future_anti_chain_Included with (l1 := left_raw_dir n) (r1 := MeasurableSubset_stream_proj Omegas n (left_raw_dir n)).
-  + auto.
-  + intros.
+  + apply Included_refl.
+  + unfold Included, Ensembles.In; intros.
     rewrite RV.Intersection_spec in H.
     tauto.
   + hnf; intros.

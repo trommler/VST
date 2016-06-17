@@ -2,6 +2,9 @@ Require Import RndHoare.sigma_algebra.
 Require Import RndHoare.measurable_function.
 Require Import RndHoare.regular_conditional_prob.
 Require Import RndHoare.random_oracle.
+Require Import RndHoare.random_history_order.
+Require Import RndHoare.random_history_conflict.
+Require Import RndHoare.history_anti_chain.
 Require Import RndHoare.random_variable.
 Require Import RndHoare.meta_state.
 Require Import RndHoare.probabilistic_pred.
@@ -100,7 +103,7 @@ Record local_step (h: RandomHistory) {O1 O2: RandomVarDomain} (s1: ProgState O1 
   Omega: RandomVarDomain;
   cs2: ProgState Omega (cmd * state);
   sound1: s1 h (Terminating _ cs1);
-  sound2: forall h' h'', history_app h h' h'' -> (forall x, s2 h'' x <-> cs2 h' x);
+  sound2: forall h' x, s2 (app_history h h') x <-> cs2 h' x;
   step_fact: step cs1 cs2
 }.
 
@@ -127,7 +130,7 @@ Definition access {O1 O2: RandomVarDomain} (src: ProgState O1 (cmd * state)) (ds
 Definition omega_access {O1 O2: RandomVarDomain} (src: ProgState O1 (cmd * state)) (dst: ProgState O2 (cmd * state)): Prop :=
   exists (l: step_path),
     RandomVar_global_equiv (path_states l 0) src /\
-    is_limit (path_states l) (step_domains l) dst.
+    RandomVar_global_equiv (limit (path_states l) (step_domains l)) dst.
 
 Definition global_state (Omega: RandomVarDomain) : Type := ProgState Omega state.
 

@@ -1,6 +1,9 @@
 Require Import Coq.omega.Omega.
 Require Import Coq.Lists.List.
 Require Import RndHoare.random_oracle.
+Require Import RndHoare.random_history_order.
+Require Import RndHoare.random_history_conflict.
+Require Import RndHoare.history_anti_chain.
 
 Definition is_max_anti_chain {ora: RandomOracle} (d: HistoryAntiChain): Prop :=
   forall h, is_inf_history h ->
@@ -9,13 +12,13 @@ Definition is_max_anti_chain {ora: RandomOracle} (d: HistoryAntiChain): Prop :=
 Lemma unit_anti_chain_max {ora: RandomOracle}: is_max_anti_chain unit_space_anti_chain.
 Proof.
   hnf; intros.
-  exists (fin_history nil).
+  exists empty_history.
   split.
   + left.
     (* TODO: pick out this proof. *)
     hnf; intros.
-    left; simpl.
-    destruct n; auto.
+    left.
+    rewrite empty_history_spec; auto.
   + simpl.
     unfold Basics.compose.
     simpl; auto.

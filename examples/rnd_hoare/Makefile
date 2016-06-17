@@ -10,7 +10,8 @@ DEP_FLAG = -R $(CURRENT_DIR) -as RndHoare -R $(RAMIFY_COQLIB) -as RamifyCoq
 FILES = \
   axiom.v\
   sigma_algebra.v measurable_function.v probability_measure.v regular_conditional_prob.v\
-  random_oracle.v random_variable.v meta_state.v imperative.v probabilistic_pred.v max_anti_chain.v\
+  random_oracle.v random_history_order.v random_history_conflict.v history_anti_chain.v\
+  random_variable.v meta_state.v imperative.v probabilistic_pred.v max_anti_chain.v\
   normal_imperative.v
 
 $(FILES:%.v=%.vo): %.vo: %.v

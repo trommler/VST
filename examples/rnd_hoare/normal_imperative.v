@@ -2,6 +2,9 @@ Require Import RndHoare.sigma_algebra.
 Require Import RndHoare.measurable_function.
 Require Import RndHoare.regular_conditional_prob.
 Require Import RndHoare.random_oracle.
+Require Import RndHoare.random_history_order.
+Require Import RndHoare.random_history_conflict.
+Require Import RndHoare.history_anti_chain.
 Require Import RndHoare.random_variable.
 Require Import RndHoare.meta_state.
 Require Import RndHoare.probabilistic_pred.
