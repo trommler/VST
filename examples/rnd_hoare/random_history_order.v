@@ -56,6 +56,8 @@ Axiom empty_history_spec: forall n, empty_history n = None.
 
 Axiom single_answer_history_spec0: forall qa, single_answer_history qa 0 = Some qa.
 
+Axiom single_answer_history_spec: forall qa n, n <> 0 -> single_answer_history qa n = None.
+
 Axiom default_inf_history_spec: forall n, default_inf_history n = Some (existT _ ro_default_question ro_default_answer).
 
 Axiom app_history_spec_inf: forall h1 h2, is_inf_history h1 -> app_history h1 h2 = h1.
@@ -640,6 +642,51 @@ Proof.
   + specialize (H0 n).
     rewrite fstn_history_None in H0 |- * by omega; auto.
 Qed.      
+
+Lemma prefix_not_equal_forward {ora: RandomOracle}: forall h1 h2, prefix_history h1 h2 -> h1 <> h2 -> exists qa, prefix_history (app_history h1 (single_answer_history qa)) h2.
+Proof.
+  intros.
+  assert (exists n, h1 n <> h2 n).
+  Focus 1. {
+    apply NNPP; intro.
+    apply H0.
+    history_extensionality n.
+    pose proof (not_ex_all_not _ _ H1).
+    specialize (H2 n).
+    apply NNPP; auto.
+  } Unfocus.
+  pose proof dec_inh_nat_subset_has_unique_least_element _ (fun n => classic (_ n)) H1.
+  clear H1; destruct H2 as [n [[? ?] _]].
+  pose proof (H n).
+  destruct H3; [| congruence].
+  destruct (h2 n) eqn:?H; [| congruence].
+  exists r.
+  hnf; intros.
+  assert (is_n_history n h1).
+  Focus 1. {
+    split; auto.
+    intros; intro.
+    specialize (H2 n'); specialize (H n').
+    assert (~ n <= n') by omega.
+    apply H7, H2; clear H7 H2; intro.
+    rewrite H2 in H6.
+    assert (n' <= n) by omega.
+    pose proof (history_sound1 h2 n' n H7 H6).
+    congruence.
+  } Unfocus.
+  destruct (le_dec n n0) as [?H | ?H].
+  + replace n0 with (n + (n0 - n)) at 1 2 by omega.
+    rewrite (app_history_spec_fin1 _ _ n); auto.
+    destruct (n0 - n) eqn:?H.
+    - rewrite single_answer_history_spec0.
+      replace n0 with n by omega.
+      right; congruence.
+    - left.
+      rewrite single_answer_history_spec; auto.
+  + rewrite (app_history_spec_fin2 _ _ n); auto.
+    omega.
+Qed.
+  
 
 (*
 Lemma n_conflict_at_least_n_history1 {ora: RandomOracle}: forall n h1 h2,

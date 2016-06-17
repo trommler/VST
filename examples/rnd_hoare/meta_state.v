@@ -256,7 +256,25 @@ Proof.
         destruct (H1 n0) as [h1 [? ?]].
         destruct H5; [exfalso; apply H3; exists h1; auto |].
         assert (h0 <> h1) by (intro; subst h1; apply H3; exists h0; split; auto; apply prefix_history_refl).
-        admit.
+        destruct (prefix_not_equal_forward h0 h1 H5 H7) as [qa ?].
+        exists qa.
+        intros n1.
+        destruct (le_dec n0 n1) as [?H | ?H].
+        Focus 1. {
+          destruct (RandomVarDomainStream_hered Omegas _ _ _ H9 H6) as [h2 [? ?]].
+          exists h2; split; auto.
+          right.
+          apply prefix_history_trans with h1; auto.
+        } Unfocus.
+        Focus 1. {
+          specialize (H4 n1).
+          assert (exists h' : RandomHistory, prefix_history h' h0 /\ (Omegas n1) h') by tauto.
+          destruct H10 as [h2 [? ?]].
+          exists h2; split; auto.
+          left.
+          apply prefix_history_trans with h0; auto.
+          apply prefix_app_history.
+        } Unfocus.
       * exists (existT _ ro_default_question ro_default_answer).
         intros.
         pose proof not_ex_not_all _ _ H3; clear H1 H3; cbv beta in H4.
@@ -503,7 +521,9 @@ Proof.
         exists n, h'; auto.
     } Unfocus.
     clear H0 H1.
-    admit.
+    pose proof prefix_in_every_layer_prefix_in_limit _ _ H H2.
+    clear - H0.
+    destruct H0 as [h' [? ?]]; exists h'; auto.
 Qed.
 
 Definition limit_domain (Omegas: RandomVarDomainStream) (dir: ConvergeDir Omegas): RandomVarDomain.
