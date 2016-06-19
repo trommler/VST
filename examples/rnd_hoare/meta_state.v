@@ -138,50 +138,15 @@ Record RandomVarDomainStream : Type := {
 
 Global Coercion raw_domains: RandomVarDomainStream >-> Funclass.
 
-Record ConvergeDir (Omegas: RandomVarDomainStream): Type := {
+Definition ProgStateStream (Omegas: RandomVarDomainStream) (state: Type) {state_sigma: SigmaAlgebra state}: Type := forall n: nat, ProgState (Omegas n) state.
+
+Record ConvergeDir {Omegas: RandomVarDomainStream} {state: Type} {state_sigma: SigmaAlgebra state} (l: ProgStateStream Omegas state): Type := {
   raw_direction: forall n, MeasurableSubset (Omegas n);
   rdir_forward: forall n, future_anti_chain (raw_direction n) (raw_direction (S n));
-  rdir_slow: forall n h, Omegas n h -> ~ Omegas (S n) h -> raw_direction n h
+  rdir_slow: forall n h, raw_direction n h \/ RandomVar_local_equiv (l n) (l (S n)) h h
 }.
 
 Global Coercion raw_direction: ConvergeDir >-> Funclass.
-
-Definition ProgStateStream (Omegas: RandomVarDomainStream) (state: Type) {state_sigma: SigmaAlgebra state}: Type := forall n: nat, ProgState (Omegas n) state.
-
-(*
-Definition is_limit_domain (Omegas: RandomVarDomainStream) (lim_Omega: RandomVarDomain) : Prop :=
-  forall h,
-    lim_Omega h <->
-      (forall n h_low, is_fin_history h_low -> prefix_history h_low h ->
-         exists n' h', n' > n /\ prefix_history h_low h' /\ prefix_history h' h /\ Omegas n' h').
-
-Definition is_limit {Omegas: RandomVarDomainStream} {lim_Omega: RandomVarDomain} {state: Type} {state_sigma: SigmaAlgebra state} (l: ProgStateStream Omegas state) (dir: ConvergeDir Omegas) (lim: ProgState lim_Omega state) : Prop :=
-  forall h s,
-    lim h s <->
-      (exists n, (l n) h s /\ forall n', n' >= n -> ~ dir n' h) \/
-      (s = NonTerminating _ /\
-       forall n h_low, is_fin_history h_low -> prefix_history h_low h ->
-         exists n' h', n' > n /\ prefix_history h_low h' /\ prefix_history h' h /\ dir n' h').
-
-*)
-Definition limit_raw_domain (Omegas: RandomVarDomainStream): RandomHistory -> Prop :=
-  fun h => forall n m, exists n' h', n' > n /\ prefix_history (fstn_history m h) h' /\ prefix_history h' h /\ Omegas n' h'.
-
-Lemma RandomVarDomainStream_stable: forall (Omegas: RandomVarDomainStream) (dir: ConvergeDir Omegas) (n: nat) h,
-  Omegas n h ->
-  (forall n0, n0 >= n -> ~ dir n0 h) ->
-  (forall n0, n0 >= n -> Omegas n0 h).
-Proof.
-  intros.
-  remember (n0 - n) as Delta eqn:?H.
-  assert (n0 = Delta + n) by omega.
-  clear H1 H2; subst n0.
-  induction Delta; auto.
-
-  pose proof rdir_slow _ dir (Delta + n) h IHDelta.
-  assert (Delta + n >= n) as HH by omega; specialize (H0 (Delta + n) HH); clear HH.
-  destruct (classic ((Omegas (S Delta + n)) h)); tauto.
-Qed.
 
 Lemma RandomVarDomainStream_same_covered: forall (Omegas: RandomVarDomainStream) (n1 n2: nat),
   same_covered_anti_chain (Omegas n1) (Omegas n2).
@@ -325,6 +290,68 @@ Definition MeasurableSubset_stream_proj (Omegas: RandomVarDomainStream) (n: nat)
     - intro; apply MeasurableSubset_in_domain.
   + apply (proj2_sig P).
 Defined.
+
+Lemma ConvergeDir_mono: forall {Omegas: RandomVarDomainStream} {state: Type} {state_sigma: SigmaAlgebra state} {l: ProgStateStream Omegas state} (dir: ConvergeDir l) (n1 n2: nat) h,
+  n1 <= n2 ->
+  ~ covered_by h (dir n1) ->
+  ~ covered_by h (dir n2).
+Proof.
+  intros.
+  remember (n2 - n1) as Delta eqn:?H.
+  assert (n2 = Delta + n1) by omega.
+  clear H1 H; subst n2.
+  induction Delta; auto.
+  
+  intro; apply IHDelta; clear IHDelta.
+  destruct H as [h' [? ?]].
+  destruct (rdir_forward _ dir (Delta + n1) h' H1) as [h'' [? ?]].
+  exists h''; split; auto.
+  eapply prefix_history_trans; eauto.
+Qed.
+
+Lemma ProgStateStream_stable: forall {Omegas: RandomVarDomainStream} {state: Type} {state_sigma: SigmaAlgebra state} (l: ProgStateStream Omegas state) (dir: ConvergeDir l) (n n0: nat) h,
+  n <= n0 ->
+  ~ covered_by h (dir n) ->
+  RandomVar_local_equiv (l n) (l n0) h h.
+Proof.
+  intros.
+  remember (n0 - n) as Delta eqn:?H.
+  assert (n0 = Delta + n) by omega.
+  clear H1 H; subst n0.
+  induction Delta.
+  + hnf; intros; reflexivity.
+  + hnf; intros.
+    rewrite (IHDelta a).
+    pose proof rdir_slow _ dir (Delta + n) h.
+    destruct H; auto.
+    exfalso.
+    apply (ConvergeDir_mono dir n (Delta + n)) in H0; [| omega].
+    apply H0; exists h.
+    split; auto.
+    apply prefix_history_refl.
+Qed.
+
+Lemma RandomVarDomainStream_stable: forall {Omegas: RandomVarDomainStream} {state: Type} {state_sigma: SigmaAlgebra state} (l: ProgStateStream Omegas state) (dir: ConvergeDir l) (n n0: nat) h,
+  n <= n0 ->
+  ~ covered_by h (dir n) ->
+  (Omegas n h <-> Omegas n0 h).
+Proof.
+  intros.
+  pose proof ProgStateStream_stable l dir n n0 h H H0.
+  clear - H1.
+  split.
+  + intros.
+    destruct (PrFamily.rf_complete _ _ (l n) h H) as [s ?].
+    rewrite (H1 s) in H0.
+    apply (PrFamily.rf_sound _ _ (l n0) h s) in H0; auto.
+  + intros.
+    destruct (PrFamily.rf_complete _ _ (l n0) h H) as [s ?].
+    rewrite <- (H1 s) in H0.
+    apply (PrFamily.rf_sound _ _ (l n) h s) in H0; auto.
+Qed.
+
+Definition limit_raw_domain (Omegas: RandomVarDomainStream): RandomHistory -> Prop :=
+  fun h => forall n m, exists n' h', n' > n /\ prefix_history (fstn_history m h) h' /\ prefix_history h' h /\ Omegas n' h'.
 
 Lemma limit_raw_domain_covered: forall (Omegas: RandomVarDomainStream) h n, limit_raw_domain Omegas h -> covered_by h (Omegas n).
 Proof.
@@ -526,7 +553,7 @@ Proof.
     destruct H0 as [h' [? ?]]; exists h'; auto.
 Qed.
 
-Definition limit_domain (Omegas: RandomVarDomainStream) (dir: ConvergeDir Omegas): RandomVarDomain.
+Definition limit_domain (Omegas: RandomVarDomainStream): RandomVarDomain.
   exists (limit_domain_anti_chain Omegas).
   eapply is_measurable_subspace_same_covered.
   + hnf; intros; split.
@@ -535,13 +562,109 @@ Definition limit_domain (Omegas: RandomVarDomainStream) (dir: ConvergeDir Omegas
   + apply (proj2_sig (Omegas 0)).
 Defined.
 
-Definition limit {Omegas: RandomVarDomainStream} {state: Type} {state_sigma: SigmaAlgebra state} (l: ProgStateStream Omegas state) (dir: ConvergeDir Omegas): ProgState (limit_domain Omegas dir) state.
-  refine (Build_ProgState _ _ _
-           (PrFamily.Build_MeasurableFunction _ _ _ (fun h s =>
-   (exists n, (l n) h s /\ forall n', n' >= n -> ~ dir n' h) \/
+Lemma ConvergeDir_uncovered_limit_domain_spec: forall {Omegas: RandomVarDomainStream} {state: Type} {state_sigma: SigmaAlgebra state} (l: ProgStateStream Omegas state) (dir: ConvergeDir l) n h,
+  ~ covered_by h (dir n) ->
+  (Omegas n h <-> limit_domain Omegas h).
+Proof.
+  intros.
+  split; intros.
+  + hnf; intros.
+    exists (max (S n0) n), h.
+    pose proof RandomVarDomainStream_stable l dir n (max (S n0) n) h.
+    split; [| split; [| split]].
+    - pose proof Max.le_max_l (S n0) n; omega.
+    - apply fstn_history_prefix.
+    - apply prefix_history_refl.
+    - rewrite <- H1; auto.
+      pose proof Max.le_max_r (S n0) n; omega.
+  + destruct (H0 n 0) as [n0 [h' [? [? [? ?]]]]].
+    assert (~ covered_by h' (dir n)) by (intro; apply H; apply (prefix_history_covered (dir n) h'); auto).
+    assert (h' = h).
+    Focus 2. {
+      subst h'.
+      rewrite (RandomVarDomainStream_stable l dir n n0) by (auto; omega).
+      auto.
+    } Unfocus.
+    destruct (n_history_inf_history_decT h') as [[m ?H] | ?H].
+    - destruct (H0 n0 (S m)) as [n1 [h'' [? [? [? ?]]]]].
+      assert (h' = h'').
+      Focus 1. {
+        apply (ConvergeDir_mono dir n n0) in H5; [| omega].
+        rewrite (RandomVarDomainStream_stable l dir n0 n1 h') in H4 by (auto; omega).
+        pose proof prefix_history_comparable _ _ _ H3 H9.
+        apply (anti_chain_not_comparable' (Omegas n1)); auto.
+      } Unfocus.
+      subst h''.
+      apply (coincide_more_than_length m (S m)); [auto | | omega].
+      apply history_coincide_sym; apply squeeze_history_coincide; auto.
+    - apply (inf_history_prefix _ _ H6 H3).
+Qed.
+
+Definition limit_raw_state {Omegas: RandomVarDomainStream} {state: Type} {state_sigma: SigmaAlgebra state} (l: ProgStateStream Omegas state) (dir: ConvergeDir l) : RandomHistory -> MetaState state -> Prop :=
+  fun h s =>
+   (exists n, (l n) h s /\ ~ covered_by h (dir n)) \/
       (s = NonTerminating _ /\
-       forall n h_low, is_fin_history h_low -> prefix_history h_low h ->
-         exists n' h', n' > n /\ prefix_history h_low h' /\ prefix_history h' h /\ dir n' h')) _ _ _ _ ) _).
+       forall n m,
+         exists n' h', n' > n /\ prefix_history (fstn_history m h) h' /\ prefix_history h' h /\ dir n' h').
+
+Lemma limit_raw_state_pf: forall {Omegas: RandomVarDomainStream} {state: Type} {state_sigma: SigmaAlgebra state} (l: ProgStateStream Omegas state) (dir: ConvergeDir l), forall h s1 s2, limit_raw_state l dir h s1 -> limit_raw_state l dir h s2 -> s1 = s2.
+Proof.
+  intros.
+  hnf in H, H0.
+  destruct H as [[n1 [? ?]] | ?], H0 as [[n2 [? ?]] | ?].
+  + pose proof ProgStateStream_stable l dir n1 (max n1 n2) h (Max.le_max_l _ _) H1.
+    pose proof ProgStateStream_stable l dir n2 (max n1 n2) h (Max.le_max_r _ _) H2.
+    rewrite (H3 s1) in H.
+    rewrite (H4 s2) in H0.
+    apply (PrFamily.rf_partial_functionality _ _ (l (max n1 n2)) h); auto.
+  + exfalso.
+    destruct H0 as [_ ?].
+    specialize (H0 n1 0).
+    destruct H0 as [n2 [h' [? [? [? ?]]]]].
+    apply (ConvergeDir_mono dir n1 n2) in H1; [| omega].
+    apply H1; exists h'.
+    auto.
+  + exfalso.
+    destruct H as [_ ?].
+    specialize (H n2 0).
+    destruct H as [n1 [h' [? [? [? ?]]]]].
+    apply (ConvergeDir_mono dir n2 n1) in H1; [| omega].
+    apply H1; exists h'.
+    auto.
+  + destruct H as [? _], H0 as [? _].
+    congruence.
+Qed.
+
+Lemma limit_raw_state_complete: forall {Omegas: RandomVarDomainStream} {state: Type} {state_sigma: SigmaAlgebra state} (l: ProgStateStream Omegas state) (dir: ConvergeDir l), forall h, limit_domain Omegas h -> exists s, limit_raw_state l dir h s.
+Proof.
+  intros.
+  destruct (classic (exists n, ~ covered_by h (dir n))).
+  + destruct H0 as [n ?].
+    rewrite <- ConvergeDir_uncovered_limit_domain_spec in H by eauto.
+    pose proof PrFamily.rf_complete _ _ (l n) h H.
+    destruct H1 as [s ?]; exists s.
+    left.
+    exists n; auto.
+  + exists (NonTerminating _).
+    right.
+    split; auto.
+    intros.
+    specialize (H n m).
+    destruct H as [n' [h' [? [? [? ?]]]]].
+    exists n', h'; split; [| split; [| split]]; auto.
+    apply NNPP; intro; apply H0; clear H0.
+    exists n'; intro.
+    apply H4; clear H4.
+    destruct H0 as [h'' [? ?]].
+    assert (h' = h''); [| subst; auto].
+    pose proof prefix_history_comparable _ _ _ H2 H0.
+    apply (anti_chain_not_comparable' (Omegas n')); auto.
+    eapply MeasurableSubset_in_domain, H4.
+Qed.
+
+Definition limit {Omegas: RandomVarDomainStream} {state: Type} {state_sigma: SigmaAlgebra state} (l: ProgStateStream Omegas state) (dir: ConvergeDir l): ProgState (limit_domain Omegas) state.
+  refine (Build_ProgState _ _ _
+           (PrFamily.Build_MeasurableFunction _ _ _ (limit_raw_state l dir) (limit_raw_state_pf _ _) (limit_raw_state_complete _ _) _ _ ) _).
   Admitted.
 
 End Limit.
@@ -552,7 +675,7 @@ Context {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: Hist
 
 Variable (filter: measurable_set (MetaState state)).
 
-Variables (Omegas: RandomVarDomainStream) (l: ProgStateStream Omegas state) (dir: ConvergeDir Omegas).
+Variables (Omegas: RandomVarDomainStream) (l: ProgStateStream Omegas state) (dir: ConvergeDir l).
 
 Fixpoint left_raw_dir (n: nat): MeasurableSubset (Omegas n) :=
   match n as n_PAT return MeasurableSubset (Omegas n_PAT) with
@@ -668,9 +791,10 @@ Qed.
 
 Definition left_domains: RandomVarDomainStream := Build_RandomVarDomainStream (fun n => exist _ _ (left_raw_domain_measurable n)) left_raw_domain_same_covered left_raw_domain_forward.
 
+(*
 Definition left_dir: ConvergeDir left_domains := Build_ConvergeDir _ (fun n => exist (fun P => PrFamily.is_measurable_set P (left_domains n)) (left_raw_dir n) (left_raw_dir_measurable n)) (left_raw_dir_forward) (left_raw_dir_slow).
 
 Definition right_raw_dir (n: nat): RandomHistory -> Prop :=
   fun h => exists m, covered_by h (left_raw_dir m) /\ ~ covered_by h (left_raw_dir (S m)) /\ MeasurableSubset_HistoryAntiChain (dir (n + S m)) h.
-
+*)
 End CutLimit.

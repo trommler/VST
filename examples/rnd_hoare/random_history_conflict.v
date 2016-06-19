@@ -229,6 +229,24 @@ Proof.
   destruct H, H0; congruence.
 Qed.
 
+Lemma coincide_more_than_length {ora: RandomOracle}: forall n m h1 h2,
+  is_n_history n h1 ->
+  history_coincide m h1 h2 ->
+  n < m ->
+  h1 = h2.
+Proof.
+  intros.
+  history_extensionality x.
+  destruct (lt_dec x m).
+  + apply H0; auto.
+  + specialize (H0 n H1).
+    destruct H as [? _].
+    rewrite H in H0; symmetry in H0.
+    rewrite (history_sound1 h1 n x) by (auto; omega).
+    rewrite (history_sound1 h2 n x) by (auto; omega).
+    auto.
+Qed.
+
 Lemma comparable_conflict_or_equal {ora: RandomOracle}: forall h1 h2,
   prefix_history h1 h2 \/ prefix_history h2 h1 ->
   conflict_history h1 h2 \/ h1 = h2.

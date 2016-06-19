@@ -163,6 +163,15 @@ Proof.
     apply H; exists n; auto.
 Qed.
 
+Lemma anti_chain_not_comparable' {ora: RandomOracle}: forall (d: HistoryAntiChain) h1 h2,
+  d h1 ->
+  d h2 ->
+  prefix_history h1 h2 \/ prefix_history h2 h1 ->
+  h1 = h2.
+Proof.
+  intros ? ? ? ? ? [? | ?]; [| symmetry]; apply (anti_chain_not_comparable d); auto.
+Qed.
+
 Instance same_covered_eq {ora: RandomOracle}: Equivalence same_covered_anti_chain.
 Proof.
   constructor.
@@ -175,6 +184,17 @@ Proof.
   + hnf; intros.
     unfold same_covered_anti_chain in *; intros.
     specialize (H h H1); specialize (H0 h H1); tauto.
+Qed.
+
+Lemma prefix_history_covered {ora: RandomOracle}: forall d h1 h2,
+  prefix_history h1 h2 ->
+  covered_by h1 d ->
+  covered_by h2 d.
+Proof.
+  intros.
+  destruct H0 as [h0 [? ?]].
+  exists h0; split; auto.
+  eapply prefix_history_trans; eauto.
 Qed.
 
 Lemma future_anti_chain_refl {ora: RandomOracle}: forall d,
@@ -197,10 +217,7 @@ Proof.
   intros.
   rename h into h3.
   destruct (H0 h3 H1) as [h2 [? ?]].
-  destruct (H h2 H3) as [h1 [? ?]].
-  exists h1.
-  split; auto.
-  apply prefix_history_trans with h2; auto.
+  apply (prefix_history_covered d1 h2 h3); auto.
 Qed.
 
 Lemma future_anti_chain_Included {ora: RandomOracle}: forall (l1 l2 r1 r2: HistoryAntiChain),

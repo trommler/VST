@@ -117,9 +117,8 @@ Record global_step {O1 O2: RandomVarDomain} (P: MeasurableSubset O1) (s1: ProgSt
 Record step_path: Type := {
   path_domain: RandomVarDomainStream;
   path_states: ProgStateStream path_domain (cmd * state);
-  step_domains: ConvergeDir path_domain;
-  step_sound: forall n, global_step (step_domains n) (path_states n) (path_states (S n));
-  domain_mono: forall n, future_anti_chain (step_domains n) (step_domains (S n))
+  step_domains: ConvergeDir path_states;
+  step_sound: forall n, global_step (step_domains n) (path_states n) (path_states (S n))
 }.
 
 Definition access {O1 O2: RandomVarDomain} (src: ProgState O1 (cmd * state)) (dst: ProgState O2 (cmd * state)): Prop :=
