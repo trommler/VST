@@ -662,9 +662,80 @@ Proof.
     eapply MeasurableSubset_in_domain, H4.
 Qed.
 
+Lemma limit_raw_state_sound: forall {Omegas: RandomVarDomainStream} {state: Type} {state_sigma: SigmaAlgebra state} (l: ProgStateStream Omegas state) (dir: ConvergeDir l), forall h s, limit_raw_state l dir h s -> limit_domain Omegas h.
+Proof.
+  intros.
+  destruct H as [[n [?H ?H]] | ?H].
+  + hnf; intros.
+    exists (max (S n0) n), h.
+    split; [| split; [| split]].
+    - pose proof Max.le_max_l (S n0) n; omega.
+    - apply fstn_history_prefix.
+    - apply prefix_history_refl.
+    - pose proof PrFamily.rf_sound _ _ _ _ _ H.
+      rewrite <- (RandomVarDomainStream_stable l dir _ _ h (Max.le_max_r (S n0) n) H0).
+      auto.
+  + destruct H as [_ ?].
+    hnf; intros.
+    specialize (H n m).
+    destruct H as [n' [h' [? [? [? ?]]]]].
+    exists n', h'; split; [| split; [| split]]; auto.
+    eapply MeasurableSubset_in_domain, H2.
+Qed.
+
+Lemma limit_raw_state_inf_sound: forall {Omegas: RandomVarDomainStream} {state: Type} {state_sigma: SigmaAlgebra state} (l: ProgStateStream Omegas state) (dir: ConvergeDir l) h s, is_inf_history h -> (limit_raw_state l dir) h s -> s = NonTerminating _.
+Proof.
+  intros.
+  destruct H0 as [[n [?H ?H]] | ?H].
+  + apply (inf_history_sound _ _ (l n) h s); auto.
+  + destruct H0; auto.
+Qed.
+    
+Lemma limit_raw_state_measurable: forall {Omegas: RandomVarDomainStream} {state: Type} {state_sigma: SigmaAlgebra state} (l: ProgStateStream Omegas state) (dir: ConvergeDir l) (P: sigma_algebra.measurable_set (MetaState state)), PrFamily.is_measurable_set (fun h => (limit_domain Omegas) h /\ forall s, (limit_raw_state l dir) h s -> P s) (limit_domain Omegas).
+Proof.
+  intros.
+  revert P.
+  apply PrFamily.rf_preserve_proof_minus1 with (b0 := NonTerminating _).
+  + simpl.
+    eapply is_measurable_set_proper; [| apply empty_measurable].
+    rewrite Same_set_spec; intros x.
+    rewrite Empty_set_spec; simpl.
+    split; [intros; congruence | intros []].
+  + apply limit_raw_state_pf.
+  + apply limit_raw_state_complete.
+  + intros.
+    eapply PrFamily.is_measurable_set_proper; [| reflexivity | apply PrFamily.countable_union_measurable].
+    - instantiate (1 := fun i h => Omegas i h /\ ~ covered_by h (dir i) /\ (forall s, l i h s -> P s)).
+      rewrite Same_set_spec; intros h.
+      split; intros.
+      * destruct H0.
+        pose proof limit_raw_state_complete l dir h H0.
+        destruct H2 as [s ?].
+        specialize (H1 s H2).
+        specialize (H _ H1); unfold Ensembles.In in H.
+        destruct H2 as [[n [?H ?H]] | [?H _]]; [| congruence].
+        exists n.
+        split; [apply PrFamily.rf_sound in H2; auto |].
+        split; [auto |].
+        intros.
+        pose proof PrFamily.rf_partial_functionality _ _ (l n) h s s0 H2 H4.
+        subst s; auto.
+      * destruct H0 as [n [? [? ?]]].
+        pose proof PrFamily.rf_complete _ _ (l n) h H0 as [s ?].
+        specialize (H2 _ H3).
+        specialize (H _ H2); unfold Ensembles.In in H.
+        split; [rewrite (ConvergeDir_uncovered_limit_domain_spec l dir n h) in H0; auto |].
+        intros.
+        assert (limit_raw_state l dir h s) by (left; exists n; auto).
+        pose proof limit_raw_state_pf l dir h b s H4 H5.
+        subst b; auto.
+    - intros.
+      admit. (* TODO: 1. prove intersection_measurable in rcp. 2. show covered_by a subset is equal to in this subset in history_anti_chain.v*)
+Qed.
+
 Definition limit {Omegas: RandomVarDomainStream} {state: Type} {state_sigma: SigmaAlgebra state} (l: ProgStateStream Omegas state) (dir: ConvergeDir l): ProgState (limit_domain Omegas) state.
   refine (Build_ProgState _ _ _
-           (PrFamily.Build_MeasurableFunction _ _ _ (limit_raw_state l dir) (limit_raw_state_pf _ _) (limit_raw_state_complete _ _) _ _ ) _).
+           (PrFamily.Build_MeasurableFunction _ _ _ (limit_raw_state l dir) (limit_raw_state_pf _ _) (limit_raw_state_complete _ _) (limit_raw_state_sound _ _) (limit_raw_state_measurable _ _)) _).
   Admitted.
 
 End Limit.

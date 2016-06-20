@@ -39,6 +39,36 @@ Proof.
   apply is_measurable_subspace_consi; auto.
 Qed.
 
+Lemma is_measurable_set_proper: Proper (Same_set ==> eq ==> iff) is_measurable_set.
+Proof.
+  intros.
+  hnf; intros; hnf; intros.
+  subst y0; rename x0 into Omega.
+  unfold is_measurable_set.
+  apply Morphisms_Prop.and_iff_morphism.
+  + rewrite H; reflexivity.
+  + apply is_measurable_set_proper.
+    rewrite Same_set_spec; intros [u ?H]; unfold sig_Set; simpl.
+    rewrite Same_set_spec in H; auto.
+Qed.
+
+Lemma countable_union_measurable: forall (Omega: measurable_subspace) P, (forall i, is_measurable_set (P i) Omega) -> is_measurable_set (Countable_Union _ P) Omega.
+Proof.
+  intros.
+  unfold is_measurable_set in *.
+  split.
+  + unfold Included, Ensembles.In, Countable_Union.
+    intros x [i ?].
+    specialize (H i).
+    destruct H as [? _].
+    apply H; auto.
+  + change (sig_Set (Countable_Union U P) Omega) with (Countable_Union _ (fun i => sig_Set (P i) Omega)).
+    apply countable_union_measurable.
+    intros.
+    specialize (H i).
+    destruct H as [_ ?]; auto.
+Qed.
+
 Definition measurable_set (Omega: measurable_subspace): Type := {P: Ensemble U | is_measurable_set P Omega}.
 
 Definition measurable_set_Ensemble (Omega: measurable_subspace): measurable_set Omega -> Ensemble U := @proj1_sig _ _.
@@ -54,7 +84,7 @@ Definition measurable_set_inv {Omega: measurable_subspace} (P: @sigma_algebra.me
   split; [apply unsig_Set_Included |].
   unfold sig_Set, unsig_Set.
   destruct P as [P ?H]; simpl.
-  eapply is_measurable_set_proper; [| eassumption].
+  eapply sigma_algebra.is_measurable_set_proper; [| eassumption].
   split; hnf; unfold In; intros.
   + destruct x, H0; simpl in *.
     assert (p = x0) by (apply proof_irrelevance; auto); subst; auto.
@@ -89,6 +119,71 @@ Definition MeasurableFunction_raw_function (Omega: measurable_subspace) (B: Type
 
 Coercion MeasurableFunction_raw_function: MeasurableFunction >-> Funclass.
 
+Lemma rf_preserve_proof_minus1: forall (Omega: measurable_subspace) (B: Type) {SB: SigmaAlgebra B} (f: U -> B -> Prop) b0,
+  let P0 := eq b0 in
+  sigma_algebra.is_measurable_set P0 ->
+  (forall x b1 b2, f x b1 -> f x b2 -> b1 = b2) ->
+  (forall x, Omega x -> exists b, f x b) ->
+  (forall (P: sigma_algebra.measurable_set B), Included P (fun b => b0 <> b) -> is_measurable_set (fun a => Omega a /\ forall b, f a b -> P b) Omega) ->
+  (forall (P: sigma_algebra.measurable_set B), is_measurable_set (fun a => Omega a /\ forall b, f a b -> P b) Omega).
+Proof.
+  intros.
+  destruct (classic (P b0)).
+  Focus 2. {
+    apply H2.
+    unfold Included, Ensembles.In.
+    intros; intro.
+    subst x; auto.
+  } Unfocus.
+  unfold is_measurable_set.
+  split.
+  1: unfold Included, Ensembles.In; intros; simpl in H4; tauto.
+
+  rename P0 into _P0.
+  set (P0 := (exist _ _P0 H): sigma_algebra.measurable_set B).
+  set (Pc := Intersection_MSet _ P (Complement_MSet _ P0)).
+  apply sigma_algebra.is_measurable_set_proper 
+    with (Union _
+             (sig_Set (fun a => Omega a /\ (forall b : B, f a b -> Pc b)) Omega)
+             (Complement _ (sig_Set (fun a => Omega a /\ (forall b : B, f a b -> (Complement_MSet _ P0) b)) Omega))).
+  + rewrite Same_set_spec; intros x.
+    rewrite Union_spec; unfold Complement, Ensembles.In.
+    destruct x as [x ?H]; unfold sig_Set; simpl.
+    assert ((forall b : B, f x b -> P b) <-> (forall b : B, f x b -> Intersection B P (Complement B _P0) b) \/ ~ (forall b : B, f x b -> (Complement_MSet _ P0) b)); [| tauto].
+    split; intros.
+    - destruct (classic (forall b, f x b -> b0 = b)).
+      * right; intro.
+        destruct (H1 x H4) as [b ?].
+        specialize (H6 _ H8); specialize (H7 _ H8).
+        subst b; auto.
+        apply H7.
+        subst P0 _P0; simpl; reflexivity.
+      * left.
+        intros.
+        specialize (H5 _ H7).
+        unfold P0; rewrite Intersection_spec; split; auto.
+        intro; apply H6; intros.
+        subst P0 _P0; simpl in H8. rewrite <- H8 in H7; clear b H5 H8.
+        apply (H0 x b0 b1 H7 H9).
+    - destruct H5.
+      * specialize (H5 _ H6).
+        rewrite Intersection_spec in H5.
+        destruct H5; auto.
+      * apply NNPP; intro.
+        apply H5; intros.
+        pose proof (H0 x b b1 H6 H8); subst b1.
+        intro; apply H7.
+        subst P0 _P0; simpl in H9.
+        rewrite <- H9; auto.
+  + apply union_measurable; [| apply complement_measurable].
+    - apply H2.
+      unfold Included, Ensembles.In; intros.
+      subst Pc; simpl in H4.
+      rewrite Intersection_spec in H4; destruct H4; auto.
+    - apply H2.
+      apply Included_refl.
+Qed.
+
 Definition MeasurableFunction_inj {Omega: measurable_subspace} {B: Type} {SB: SigmaAlgebra B} (f: MeasurableFunction Omega B): @measurable_function.MeasurableFunction _ B (sub_sigma_algebra Omega) _.
   apply (measurable_function.Build_MeasurableFunction _ _ _ _ (fun a b => f (proj1_sig a) b)).
   + intros [a ?] ? ? ? ?; simpl in *.
@@ -99,7 +194,7 @@ Definition MeasurableFunction_inj {Omega: measurable_subspace} {B: Type} {SB: Si
   + intros; simpl.
     pose proof (rf_preserve _ _ f P).
     destruct H as [_ ?].
-    eapply is_measurable_set_proper; [| eassumption].
+    eapply sigma_algebra.is_measurable_set_proper; [| eassumption].
     rewrite Same_set_spec; intros [a ?H]; unfold sig_Set; simpl.
     split; intros; auto.
     destruct H1; auto.
@@ -121,7 +216,7 @@ Definition MeasurableFunction_inv {Omega: measurable_subspace} {B: Type} {SB: Si
     unfold is_measurable_set.
     split.
     - unfold Included, Ensembles.In; simpl; intros. tauto.
-    - eapply is_measurable_set_proper; [| eassumption].
+    - eapply sigma_algebra.is_measurable_set_proper; [| eassumption].
       rewrite Same_set_spec; intros [a ?H]; unfold sig_Set; simpl.
       split; intros.
       * destruct H1 as [_ ?].
