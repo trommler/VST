@@ -172,6 +172,21 @@ Proof.
   intros ? ? ? ? ? [? | ?]; [| symmetry]; apply (anti_chain_not_comparable d); auto.
 Qed.
 
+Lemma covered_by_is_element {ora: RandomOracle}: forall (d1 d2: HistoryAntiChain) h,
+  d2 h ->
+  Included d1 d2 ->
+  (d1 h <-> covered_by h d1).
+Proof.
+  intros.
+  split; intros.
+  + exists h; split; auto.
+    apply prefix_history_refl.
+  + destruct H1 as [h' [? ?]].
+    assert (d2 h') by (apply H0; auto).
+    assert (h' = h) by (apply (anti_chain_not_comparable d2); auto).
+    subst h'; auto.
+Qed.
+
 Instance same_covered_eq {ora: RandomOracle}: Equivalence same_covered_anti_chain.
 Proof.
   constructor.

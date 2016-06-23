@@ -69,6 +69,36 @@ Proof.
     destruct H as [_ ?]; auto.
 Qed.
 
+Lemma complement_measurable: forall (Omega: measurable_subspace) P, is_measurable_set P Omega -> is_measurable_set (Intersection _ Omega (Complement _ P)) Omega.
+Proof.
+  intros.
+  unfold is_measurable_set in *.
+  split.
+  + apply Intersection1_Included, Included_refl.
+  + eapply sigma_algebra.is_measurable_set_proper with (Complement _ (sig_Set P Omega)).
+    - rewrite Same_set_spec; intros [x ?].
+      unfold Complement, Ensembles.In, sig_Set; simpl.
+      rewrite Intersection_spec.
+      tauto.
+    - apply complement_measurable; tauto.
+Qed.
+
+Lemma intersection_measurable: forall (Omega: measurable_subspace) P Q, is_measurable_set P Omega -> is_measurable_set Q Omega -> is_measurable_set (Intersection _ P Q) Omega.
+Proof.
+  intros.
+  unfold is_measurable_set in *.
+  split.
+  + unfold Included, Ensembles.In.
+    intros.
+    rewrite Intersection_spec in H1.
+    apply (proj1 H); tauto.
+  + eapply sigma_algebra.is_measurable_set_proper with (Intersection _ (sig_Set P Omega) (sig_Set Q Omega)).
+    - rewrite Same_set_spec; intros [x ?].
+      rewrite Intersection_spec; unfold sig_Set; simpl.
+      rewrite Intersection_spec; reflexivity.
+    - apply intersection_measurable; tauto.
+Qed.
+
 Definition measurable_set (Omega: measurable_subspace): Type := {P: Ensemble U | is_measurable_set P Omega}.
 
 Definition measurable_set_Ensemble (Omega: measurable_subspace): measurable_set Omega -> Ensemble U := @proj1_sig _ _.
@@ -175,7 +205,7 @@ Proof.
         intro; apply H7.
         subst P0 _P0; simpl in H9.
         rewrite <- H9; auto.
-  + apply union_measurable; [| apply complement_measurable].
+  + apply union_measurable; [| apply sigma_algebra.complement_measurable].
     - apply H2.
       unfold Included, Ensembles.In; intros.
       subst Pc; simpl in H4.
