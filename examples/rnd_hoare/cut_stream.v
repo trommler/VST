@@ -270,10 +270,21 @@ Proof.
       eapply state_FullStreamEnd; eauto.
 Qed.
 
-Lemma raw_sstate_preserve: forall m r H P,
-  is_measurable_set P ->
+Lemma raw_sstate_preserve: forall m r H (P: measurable_set (MetaState state)),
   PrFamily.is_measurable_set (fun h => raw_sdomains m r h /\ (forall s, raw_sstate m r h s -> P s)) (exist _ (raw_sdomains m r) H).
 Admitted.
+
+Lemma raw_sstate_inf_consist: forall m r h s,
+  is_inf_history h ->
+  raw_sstate m r h s ->
+  s = NonTerminating _.
+Proof.
+  intros.
+  destruct H0.
+  + apply (inf_history_sound _ _ (l n) h); auto.
+  + apply (inf_history_sound _ _ (l n) h); auto.
+  + apply (inf_history_sound _ _ (limit l dir) h); auto.
+Qed.
 
 Lemma raw_sdir_in_raw_domains: forall m r,
   Included (raw_sdir m r) (raw_sdomains m r).
@@ -309,5 +320,194 @@ Lemma init_raw_state_is_limit_state: forall (Omegas0: RandomVarDomainStream) (l0
   (forall r h s, l0 r h s = raw_sstate m r h s) ->
   (forall h s, limit l0 dir0 h s <-> raw_sstate (S m) 0 h s).
 Admitted.
+
+Section ind.
+
+Variable (m: nat).
+Hypothesis (H: LegalHistoryAntiChain (raw_sdomains m 0)) (H0: is_measurable_subspace (raw_sdomains m 0)).
+
+Definition sub_domain'' (r: nat): RandomVarDomain.
+  refine (exist _ (raw_sdomains m r) _).
+  assert (LegalHistoryAntiChain (raw_sdomains m r) /\ is_measurable_subspace (raw_sdomains m r)); [| tauto].
+  induction r.
+  + auto.
+  + destruct IHr.
+    pose proof raw_sdomains_legal_ind _ _ H1.
+    split; auto.
+    change (raw_sdomains m (S r)) with
+        (Build_HistoryAntiChain _ (raw_sdomains m (S r)) H3: Ensemble _).
+    apply is_measurable_subspace_same_covered with (Build_HistoryAntiChain _ (raw_sdomains m r) H1); auto.
+    apply raw_sdomains_same_covered.
+Defined.
+
+Definition sub_domain': RandomVarDomainStream.
+  refine (Build_RandomVarDomainStream sub_domain'' _ _).
+  + intros; apply raw_sdomains_same_covered.
+  + intros; apply raw_sdomains_forward.
+Defined.
+
+Definition sub_state': ProgStateStream sub_domain' state :=
+  fun r =>
+    Build_ProgState _ _ _
+     (PrFamily.Build_MeasurableFunction (sub_domain'' r) _ _
+       (raw_sstate m r)
+       (raw_sstate_partial_functionality _ _)
+       (raw_sstate_complete _ _)
+       (raw_sstate_sound _ _)
+       (raw_sstate_preserve _ _ _))
+     (raw_sstate_inf_consist _ _).
+
+Definition sub_dir'' (r: nat): MeasurableSubset (sub_domain'' r) :=
+  exist _ (raw_sdir m r) (raw_sdir_measurable m r _).
+
+Definition sub_dir': ConvergeDir sub_state'.
+  refine (Build_ConvergeDir sub_domain' _ _ _ sub_dir'' _ _).
+  + intros. apply raw_sdir_forward.
+  + intros. apply raw_sdir_slow.
+Defined.
+
+Lemma init_dom_is_limit_dom': forall h, limit_domain sub_domain' h <-> raw_sdomains (S m) 0 h.
+Proof.
+  apply init_raw_dom_is_limit_dom.
+  intros; reflexivity.
+Qed.
+
+Lemma legal_ind: LegalHistoryAntiChain (raw_sdomains (S m) 0).
+Proof.
+  constructor.
+  hnf; intros.
+  rewrite <- init_dom_is_limit_dom' in H2.
+  rewrite <- init_dom_is_limit_dom' in H3.
+  exact (@rand_consi _ _ (raw_anti_chain_legal (limit_domain sub_domain')) _ _ H1 H2 H3).
+Qed.
+
+Lemma measurable_ind: is_measurable_subspace (raw_sdomains (S m) 0).
+  apply is_measurable_subspace_proper with (limit_domain sub_domain').
+  + symmetry; rewrite Same_set_spec; exact init_dom_is_limit_dom'.
+  + apply (proj2_sig (limit_domain sub_domain')).
+Qed.
+
+End ind.
+
+Lemma local_step_label_00_iff: forall h n, n = 0 /\ dir 0 h <-> local_step_label n h 0 0.
+Proof.
+  intros.
+  split; intros.
+  + destruct H; subst; apply label_0; auto.
+  + inversion H; subst; auto.
+Qed.
+
+Lemma local_step_rev_00_ActiveBranch_iff: forall h n, local_step_rev 0 0 h (ActiveBranch n) <-> n = 0 /\ dir 0 h.
+Proof.
+  intros.
+  split; intros.
+  + inversion H; subst.
+    rewrite local_step_label_00_iff; auto.
+  + constructor.
+    rewrite local_step_label_00_iff in H; auto.
+Qed.
+
+Lemma local_step_rev_00_SingleStreamEnd_iff: forall h n, local_step_rev 0 0 h (SingleStreamEnd n) <-> False.
+Proof.
+  intros.
+  split; [| tauto].
+  intros.
+  inversion H; subst.
+  pose proof labeled_in_dir _ _ _ _ H5.
+  destruct (fun HH => ConvergeDir_mono dir 0 n HH h H0) as [h' [? ?]]; [omega |].
+  specialize (H1 0 h' H2).
+  apply H1.
+  rewrite <- local_step_label_00_iff; auto.
+Qed.
+
+Lemma local_step_rev_00_FullStreamEnd_iff: forall h, local_step_rev 0 0 h FullStreamEnd <-> Omegas 0 h /\ ~ dir 0 h.
+Proof.
+  intros.
+  split; intros.
+  + inversion H; subst.
+    assert (~ covered_by h (dir 0)).
+    Focus 1. {
+      intros [h' [? ?]].
+      specialize (H0 0 h' H3).
+      rewrite <- local_step_label_00_iff in H0.
+      tauto.
+    } Unfocus.
+    split.
+    - rewrite ConvergeDir_uncovered_limit_domain_spec by eauto. auto.
+    - intro; apply H3; exists h; split; [apply prefix_history_refl | auto].
+  + destruct H.
+    assert (~ covered_by h (dir 0)).
+    Focus 1. {
+      rewrite <- covered_by_is_element; [auto | exact H | exact (MeasurableSubset_in_domain _ _)].
+    } Unfocus.
+    constructor.
+    - intros; intro.
+      apply H1; exists h'.
+      rewrite <- local_step_label_00_iff in H3.
+      tauto.
+    - intros; intro.
+      pose proof labeled_in_dir _ _ _ _ H3.
+      destruct (fun HH => ConvergeDir_mono dir 0 n' HH h' H4) as [h'' [? ?]]; [omega |].
+      apply H1; exists h''; split; auto.
+      eapply prefix_history_trans; eauto.
+    - rewrite <- ConvergeDir_uncovered_limit_domain_spec by eauto.
+      auto.
+Qed.
+
+Lemma local_step_rev_00_iff: forall h, (exists k, local_step_rev 0 0 h k) <-> Omegas 0 h.
+Proof.
+  intros.
+  split; [intros [? ?] | intros].
+  + inversion H; subst.
+    - rewrite local_step_rev_00_ActiveBranch_iff in H.
+      destruct H.
+      eapply MeasurableSubset_in_domain; eauto.
+    - rewrite local_step_rev_00_SingleStreamEnd_iff in H.
+      tauto.
+    - rewrite local_step_rev_00_FullStreamEnd_iff in H.
+      tauto.
+  + destruct (classic (dir 0 h)).
+    - exists (ActiveBranch 0).
+      rewrite local_step_rev_00_ActiveBranch_iff; auto.
+    - exists FullStreamEnd.
+      rewrite local_step_rev_00_FullStreamEnd_iff; auto.
+Qed.
+
+Lemma raw_sdomains_00_iff: forall h, raw_sdomains 0 0 h <-> Omegas 0 h.
+Proof.
+  intros.
+  rewrite <- local_step_rev_00_iff.
+  split; intros.
+  + inversion H; subst; firstorder.
+  + destruct H as [[? | ? |] ?].
+    - eapply dom_ActiveBranch; eauto.
+    - eapply dom_SingleStreamEnd; eauto.
+    - apply dom_FullStreamEnd; auto.
+Qed.
+
+Lemma legal0_measure0: forall m, LegalHistoryAntiChain (raw_sdomains m 0) /\ is_measurable_subspace (raw_sdomains m 0).
+Proof.
+  intros.
+  induction m.
+  + split.
+    - simpl.
+      constructor; hnf; intros.
+      rewrite raw_sdomains_00_iff in H0.
+      rewrite raw_sdomains_00_iff in H1.
+      exact (@rand_consi _ _ (raw_anti_chain_legal (Omegas 0)) _ _ H H0 H1).
+    - apply is_measurable_subspace_proper with (Omegas 0).
+      * rewrite Same_set_spec; exact raw_sdomains_00_iff.
+      * apply (proj2_sig (Omegas 0)).
+  + destruct IHm.
+    split.
+    - apply legal_ind; auto.
+    - apply measurable_ind; auto.
+Qed.
+
+Definition sub_domain (m: nat): RandomVarDomainStream := sub_domain' m (proj1 (legal0_measure0 m)) (proj2 (legal0_measure0 m)).
+
+Definition sub_state (m: nat): ProgStateStream (sub_domain m) state := sub_state' m (proj1 (legal0_measure0 m)) (proj2 (legal0_measure0 m)).
+
+Definition sub_dir (m: nat): ConvergeDir (sub_state m) := sub_dir' m (proj1 (legal0_measure0 m)) (proj2 (legal0_measure0 m)).
 
 End CutStream.
