@@ -7,6 +7,8 @@ Require Import RndHoare.random_history_conflict.
 Require Import RndHoare.history_anti_chain.
 Require Import RndHoare.random_variable.
 Require Import RndHoare.meta_state.
+Require Import RndHoare.pstate_stream_lemmas.
+Require Import RndHoare.pstate_stream_limit.
 Require Import RndHoare.probabilistic_pred.
 Require Import RndHoare.imperative.
 Import Randomized.

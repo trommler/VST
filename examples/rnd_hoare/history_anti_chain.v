@@ -266,6 +266,21 @@ Proof.
   rewrite <- H6; auto.
 Qed.
 
+Lemma future_anti_chain_comparable_choice {ora: RandomOracle}: forall d1 d2 h1 h2,
+  future_anti_chain d1 d2 ->
+  d1 h1 ->
+  d2 h2 ->
+  prefix_history h1 h2 \/ prefix_history h2 h1 ->
+  prefix_history h1 h2.
+Proof.
+  intros.
+  destruct H2; auto.
+  destruct (H h2 H1) as [h1' [? ?]].
+  pose proof anti_chain_not_comparable d1 _ _ H4 H0 (prefix_history_trans _ _ _ H3 H2).
+  subst h1'; auto.
+Qed.
+
+(* TODO: change these lemma name. not only spec/strong-spec. *)
 Lemma same_covered_future_anti_chain_spec {ora: RandomOracle}: forall d1 d2,
   same_covered_anti_chain d1 d2 ->
   future_anti_chain d1 d2 ->
@@ -328,12 +343,27 @@ Proof.
     split; [| split]; auto.
     right.
     eapply strict_conflict_forward_left; eauto.
+Qed.  
+
+Lemma same_covered_future_anti_chain_no_strict_conflict {ora: RandomOracle}: forall d1 d2 h1 h2,
+  same_covered_anti_chain d1 d2 ->
+  future_anti_chain d1 d2 ->
+  d1 h1 ->
+  d2 h2 ->
+  strict_conflict_history h1 h2 ->
+  False.
+Proof.
+  intros.
+  destruct (same_covered_future_anti_chain_spec d1 d2 H H0 h1 H1) as [h2' [? ?]].
+  pose proof strict_conflict_forward_left _ _ _ H3 H4.
+  apply strict_conflict_conflict in H6.
+  exact (@rand_consi _ _ (raw_anti_chain_legal d2) _ _ H6 H5 H2).
 Qed.
 
 Lemma same_covered_future_anti_chain_subset1 {ora: RandomOracle}: forall (d1' d1 d2: HistoryAntiChain),
   same_covered_anti_chain d1 d2 ->
   future_anti_chain d1 d2 ->
-  (forall h, d1' h -> d1 h) ->
+  Included d1' d1 ->
   same_covered_anti_chain d1' (filter_anti_chain (fun h => covered_by h d1') d2).
 Proof.
   intros.
@@ -351,7 +381,7 @@ Qed.
 Lemma same_covered_future_anti_chain_subset2 {ora: RandomOracle}: forall (d1' d1 d2: HistoryAntiChain),
   same_covered_anti_chain d1 d2 ->
   future_anti_chain d1 d2 ->
-  (forall h, d1' h -> d1 h) ->
+  Included d1' d1 ->
   future_anti_chain d1' (filter_anti_chain (fun h => covered_by h d1') d2).
 Proof.
   intros.
@@ -388,7 +418,7 @@ Proof.
 Qed.
 
 Lemma subst_anti_chain_same_covered {ora: RandomOracle}: forall (P d1 d2: HistoryAntiChain),
-  (forall h, P h -> d1 h) ->
+  Included P d1 ->
   same_covered_anti_chain P (filter_anti_chain (fun h => covered_by h P) d2) ->
   same_covered_anti_chain d1 (subst_anti_chain P d1 d2).
 Proof.
@@ -414,8 +444,8 @@ Proof.
 Qed.
 
 Lemma subst_anti_chain_same_covered' {ora: RandomOracle}: forall (P P' d1 d2: HistoryAntiChain),
-  (forall h, P h -> d1 h) ->
-  (forall h, P h -> P' h) ->
+  Included P d1 ->
+  Included P P' ->
   same_covered_anti_chain P' d2 ->
   future_anti_chain P' d2 ->
   same_covered_anti_chain d1 (subst_anti_chain P d1 d2).

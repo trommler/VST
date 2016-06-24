@@ -456,3 +456,14 @@ Proof.
     rewrite or_comm in H2; apply comparable_conflict_or_equal; auto.
   + left; eapply strict_conflict_backward_conflict_right; eauto.
 Qed.
+
+Lemma conflict_neq {ora: RandomOracle}: forall h1 h2,
+  conflict_history h1 h2 -> h1 <> h2.
+Proof.
+  intros.
+  destruct H as [n [? ?]].
+  intro.
+  subst h2.
+  hnf in H0.
+  destruct (h1 n); auto.
+Qed.
