@@ -102,6 +102,9 @@ Proof. intros. apply PrFamily.Union_spec. Qed.
 End RV.
 
 End RV.
+
+
+
 (*
 Definition filter_var {ora: RandomOracle} {A: Type} (filter: RandomHistory -> Prop) (v: RandomVariable A): RandomVariable A.
   refine (Build_RandomVariable _ _

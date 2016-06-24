@@ -291,7 +291,21 @@ Definition MeasurableSubset_stream_proj (Omegas: RandomVarDomainStream) (n: nat)
   + apply (proj2_sig P).
 Defined.
 
-Lemma ConvergeDir_mono: forall {Omegas: RandomVarDomainStream} {state: Type} {state_sigma: SigmaAlgebra state} {l: ProgStateStream Omegas state} (dir: ConvergeDir l) (n1 n2: nat) h,
+Lemma ConvergeDir_mono: forall {Omegas: RandomVarDomainStream} {state: Type} {state_sigma: SigmaAlgebra state} {l: ProgStateStream Omegas state} (dir: ConvergeDir l) (n1 n2: nat),
+  n1 <= n2 ->
+  future_anti_chain (dir n1) (dir n2).
+Proof.
+  intros.
+  remember (n2 - n1) as Delta.
+  assert (n2 = Delta + n1) by omega.
+  subst n2; clear HeqDelta H.
+  induction Delta.
+  + apply future_anti_chain_refl.
+  + apply future_anti_chain_trans with (dir (Delta + n1)); auto.
+    apply rdir_forward.
+Qed.
+
+Lemma ConvergeDir_uncovered_mono: forall {Omegas: RandomVarDomainStream} {state: Type} {state_sigma: SigmaAlgebra state} {l: ProgStateStream Omegas state} (dir: ConvergeDir l) (n1 n2: nat) h,
   n1 <= n2 ->
   ~ covered_by h (dir n1) ->
   ~ covered_by h (dir n2).
@@ -325,7 +339,7 @@ Proof.
     pose proof rdir_slow _ dir (Delta + n) h.
     destruct H; auto.
     exfalso.
-    apply (ConvergeDir_mono dir n (Delta + n)) in H0; [| omega].
+    apply (ConvergeDir_uncovered_mono dir n (Delta + n)) in H0; [| omega].
     apply H0; exists h.
     split; auto.
     apply prefix_history_refl.
@@ -597,7 +611,7 @@ Proof.
     - destruct (H0 n0 (S m)) as [n1 [h'' [? [? [? ?]]]]].
       assert (h' = h'').
       Focus 1. {
-        apply (ConvergeDir_mono dir n n0) in H5; [| omega].
+        apply (ConvergeDir_uncovered_mono dir n n0) in H5; [| omega].
         rewrite (RandomVarDomainStream_stable l dir n0 n1 h') in H4 by (auto; omega).
         pose proof prefix_history_comparable _ _ _ H3 H9.
         apply (anti_chain_not_comparable' (Omegas n1)); auto.
@@ -629,14 +643,14 @@ Proof.
     destruct H0 as [_ ?].
     specialize (H0 n1 0).
     destruct H0 as [n2 [h' [? [? [? ?]]]]].
-    apply (ConvergeDir_mono dir n1 n2) in H1; [| omega].
+    apply (ConvergeDir_uncovered_mono dir n1 n2) in H1; [| omega].
     apply H1; exists h'.
     auto.
   + exfalso.
     destruct H as [_ ?].
     specialize (H n2 0).
     destruct H as [n1 [h' [? [? [? ?]]]]].
-    apply (ConvergeDir_mono dir n2 n1) in H1; [| omega].
+    apply (ConvergeDir_uncovered_mono dir n2 n1) in H1; [| omega].
     apply H1; exists h'.
     auto.
   + destruct H as [? _], H0 as [? _].
@@ -787,6 +801,7 @@ Definition limit {Omegas: RandomVarDomainStream} {state: Type} {state_sigma: Sig
 
 End Limit.
 
+(*
 Section CutLimit.
 
 Context {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {state: Type} {state_sigma: SigmaAlgebra state}.
@@ -813,9 +828,8 @@ Fixpoint left_raw_state (n: nat): RandomHistory -> MetaState state -> Prop :=
   match n with
   | 0 => fun h s => l 0 h s
   | S n0 => fun h s => 
-              (Intersection _ (Complement _ (left_raw_dir n0)) (left_raw_domain n0)) h /\
-              left_raw_state n0 h s \/
-              covered_by h (left_raw_dir n0) /\ l n h s
+              left_raw_state n0 h s /\ ~ left_raw_dir n0 h \/
+              l n h s /\ covered_by h (left_raw_dir n0)
   end.
 
 Lemma left_raw_dir_in_left_raw_domain: forall n, Included (left_raw_dir n) (left_raw_domain n).
@@ -901,13 +915,69 @@ Proof.
     destruct H; auto.
 Qed.
 
-Lemma left_raw_dir_slow: forall n h, left_raw_domain n h -> ~ left_raw_domain (S n) h -> left_raw_dir n h.
+Definition left_domains: RandomVarDomainStream := Build_RandomVarDomainStream (fun n => exist _ _ (left_raw_domain_measurable n)) left_raw_domain_same_covered left_raw_domain_forward.
+
+Lemma left_raw_state_partial_functionality_ind: forall n,
+  (forall h b1 b2, left_raw_state n h b1 -> left_raw_state n h b2 -> b1 = b2) ->
+  (forall h b, left_raw_state n h b -> left_domains n h) ->
+  (forall h b1 b2, left_raw_state (S n) h b1 -> left_raw_state (S n) h b2 -> b1 = b2).
+Proof.
+  intros ? H_PF H_S; intros.
+  destruct H as [[? ?] | [? ?]], H0 as [[? ?] | [? ?]].
+  + apply (H_PF h); auto.
+  + exfalso.
+    destruct H2 as [h' [? ?]].
+    pose proof H_S h _ H.
+    pose proof left_raw_dir_in_left_raw_domain n _ H3.
+    pose proof anti_chain_not_comparable _ h' h H5 H4 H2.
+    subst h'; auto.
+  + exfalso.
+    destruct H1 as [h' [? ?]].
+    pose proof H_S h _ H0.
+    pose proof left_raw_dir_in_left_raw_domain n _ H3.
+    pose proof anti_chain_not_comparable _ h' h H5 H4 H1.
+    subst h'; auto.
+  + apply (PrFamily.rf_partial_functionality _ _ (l (S n)) h); auto.
+Qed.
+
+Lemma left_raw_state_sound_ind: forall n,
+  (forall h b, left_raw_state n h b -> left_domains n h) ->
+  (forall h b, left_raw_state (S n) h b -> left_domains (S n) h).
+Proof.
+  intros n H_S; intros.
+  destruct H as [[? ?] | [? ?]]; [left | right].
+  + apply H_S in H.
+    auto.
+  + apply (PrFamily.rf_sound _ _ (l (S n))) in H.
+    split; auto.
+    destruct H0 as [h' [? ?]]; exists h'; split; auto.
+    split; auto.
+    apply (left_raw_dir_in_left_raw_domain n); auto.
+Qed.
+
+Lemma left_raw_state_complete_ind: forall n,
+  (forall h, left_domains n h -> exists b, left_raw_state n h b) ->
+  (forall h, left_domains (S n) h -> exists b, left_raw_state (S n) h b).
+Proof.
+  intros n H_COM; intros.
+  destruct H as [[? ?] | [? ?]].
+  + apply H_COM in H.
+    destruct H as [b ?]; exists b; left.
+    auto.
+  + apply (PrFamily.rf_complete _ _ (l (S n))) in H.
+    destruct H as [b ?]; exists b; right.
+    split; auto.
+    destruct H0 as [h' [? [? ?]]]; exists h'; auto.
+Qed.
+
+
+(*
+Lemma left_raw_dir_slow: forall n h, left_raw_dir n h \/ RandomVar_local_equiv (l n) (l (S n)) h h
 Proof.
   intros; simpl in H0.
   destruct (classic ((left_raw_dir n) h)); tauto.
 Qed.
-
-Definition left_domains: RandomVarDomainStream := Build_RandomVarDomainStream (fun n => exist _ _ (left_raw_domain_measurable n)) left_raw_domain_same_covered left_raw_domain_forward.
+*)
 
 (*
 Definition left_dir: ConvergeDir left_domains := Build_ConvergeDir _ (fun n => exist (fun P => PrFamily.is_measurable_set P (left_domains n)) (left_raw_dir n) (left_raw_dir_measurable n)) (left_raw_dir_forward) (left_raw_dir_slow).
@@ -916,3 +986,4 @@ Definition right_raw_dir (n: nat): RandomHistory -> Prop :=
   fun h => exists m, covered_by h (left_raw_dir m) /\ ~ covered_by h (left_raw_dir (S m)) /\ MeasurableSubset_HistoryAntiChain (dir (n + S m)) h.
 *)
 End CutLimit.
+*)

@@ -83,22 +83,6 @@ Proof.
     - apply complement_measurable; tauto.
 Qed.
 
-Lemma intersection_measurable: forall (Omega: measurable_subspace) P Q, is_measurable_set P Omega -> is_measurable_set Q Omega -> is_measurable_set (Intersection _ P Q) Omega.
-Proof.
-  intros.
-  unfold is_measurable_set in *.
-  split.
-  + unfold Included, Ensembles.In.
-    intros.
-    rewrite Intersection_spec in H1.
-    apply (proj1 H); tauto.
-  + eapply sigma_algebra.is_measurable_set_proper with (Intersection _ (sig_Set P Omega) (sig_Set Q Omega)).
-    - rewrite Same_set_spec; intros [x ?].
-      rewrite Intersection_spec; unfold sig_Set; simpl.
-      rewrite Intersection_spec; reflexivity.
-    - apply intersection_measurable; tauto.
-Qed.
-
 Definition measurable_set (Omega: measurable_subspace): Type := {P: Ensemble U | is_measurable_set P Omega}.
 
 Definition measurable_set_Ensemble (Omega: measurable_subspace): measurable_set Omega -> Ensemble U := @proj1_sig _ _.
@@ -297,6 +281,17 @@ Proof.
     split; auto.
 Qed.
 
+Lemma intersection_measurable: forall (Omega: measurable_subspace) P Q, is_measurable_set P Omega -> is_measurable_set Q Omega -> is_measurable_set (Intersection _ P Q) Omega.
+Proof.
+  intros.
+  pose (P' := exist _ P H: measurable_set Omega).
+  pose (Q' := exist _ Q H0: measurable_set Omega).
+  pose proof Intersection_spec P' Q'.
+  eapply is_measurable_set_proper; [| reflexivity | apply (proj2_sig (Intersection_MSet P' Q'))].
+  rewrite Same_set_spec; intro x.
+  rewrite Ensembles_ext.Intersection_spec; specialize (H1 x). tauto.
+Qed.
+
 Definition Union_MSet {Omega: measurable_subspace} (A B: measurable_set Omega): measurable_set Omega :=
   measurable_set_inv (sigma_algebra.Union_MSet _ (measurable_set_inj A) (measurable_set_inj B)).
 
@@ -318,6 +313,17 @@ Proof.
       right; auto.
 Qed.
 
+Lemma union_measurable: forall (Omega: measurable_subspace) P Q, is_measurable_set P Omega -> is_measurable_set Q Omega -> is_measurable_set (Union _ P Q) Omega.
+Proof.
+  intros.
+  pose (P' := exist _ P H: measurable_set Omega).
+  pose (Q' := exist _ Q H0: measurable_set Omega).
+  pose proof Union_spec P' Q'.
+  eapply is_measurable_set_proper; [| reflexivity | apply (proj2_sig (Union_MSet P' Q'))].
+  rewrite Same_set_spec; intro x.
+  rewrite Ensembles_ext.Union_spec; specialize (H1 x). tauto.
+Qed.
+
 Lemma Compose_spec: forall {Omega: measurable_subspace} {B C: Type} {SB: SigmaAlgebra B} {SC: SigmaAlgebra C} (g: measurable_function.MeasurableFunction B C) (f: MeasurableFunction Omega B) x c, Compose g f x c <-> exists b, f x b /\ g b c.
 Proof.
   intros.
@@ -333,6 +339,7 @@ Proof.
     split; auto.
     exists x0; auto.
 Qed.
+
 
 Context {PrF: ProbabilityMeasureFamily U}.
 
