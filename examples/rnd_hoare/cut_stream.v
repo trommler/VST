@@ -521,56 +521,83 @@ Proof.
       auto.
 Qed.
 
-Lemma local_step_rev_mS_FullStreamEnd_iff: forall m r h, local_step_rev m (S r) h FullStreamEnd <-> local_step_rev m r h FullStreamEnd \/ (exists n' h', prefix_history h' h /\ local_step_rev m r h' (ActiveBranch n') /\ ~ dir (S n') h).
+Lemma local_step_rev_mS_FullStreamEnd_iff: forall m r h, local_step_rev m (S r) h FullStreamEnd <-> local_step_rev m r h FullStreamEnd \/ (exists n' h', prefix_history h' h /\ local_step_rev m r h' (ActiveBranch n') /\ Omegas (S n') h /\ ~ dir (S n') h).
 Proof.
   intros.
   split.
   + intros.
     inversion H; subst.
-(*
-    destruct 
-    inversion H5; subst.
-    destruct (lt_eq_lt_dec r0 r) as [[?H | ?H] | ?H].
+    destruct (classic (exists n' h',
+      prefix_history h' h /\
+      local_step_rev m r h' (ActiveBranch n') )).
+    - right.
+      destruct H3 as [n' [h' [? ?]]].
+      exists n', h'.
+      split; [| split]; auto.
+      inversion H4; subst.
+      assert (~ covered_by h (dir (S n'))).
+      Focus 1. {
+        intro.
+        destruct H5 as [h'' [? ?]].
+        destruct (PrFamily.rf_complete _ _ (l (S n')) h'') as [s ?]; [eapply MeasurableSubset_in_domain; eauto |].
+        assert (prefix_history h' h'').
+        Focus 1. {
+          apply (proj_in_anti_chain_unique (dir n') h' h'' h); auto.
+          + apply (rdir_forward _ _ n' h''); auto.
+          + apply labeled_in_dir in H9; auto.
+        } Unfocus.
+        destruct (classic (filter m s)).
+        + apply (H1 (S n') h''); auto. 
+          econstructor; eauto.
+          intros.
+          pose proof PrFamily.rf_partial_functionality _ _ (l (S n')) h'' _ _ H7 H11.
+          subst s0.
+          auto.
+        + apply (H0 (S n') h''); [auto |].
+          econstructor; eauto.
+          intros.
+          pose proof PrFamily.rf_partial_functionality _ _ (l (S n')) h'' _ _ H7 H11.
+          subst s0.
+          auto.
+      } Unfocus.
+      pose proof ConvergeDir_uncovered_limit_domain_spec l dir (S n') h H5.
+      pose proof (fun HH => covered_by_is_element (dir (S n')) (Omegas (S n')) h HH (MeasurableSubset_in_domain _ _)).
+      tauto.
     - left.
       constructor; auto.
       intros; intro.
-      rename h'0 into h''.
-      destruct (local_step_label_comparable_history_strict_order _ _ _ _ _ _ _ _ (prefix_history_comparable _ _ _ H4 H6) H3 H7) as [? | [? | ?]]; [| omega | omega].
-      destruct (local_step_label_comparable_history_strict_order _ _ _ _ _ _ _ _ (or_introl H6) H7 H5) as [? | [? | ?]]; omega.
-    - right.
-      subst r0.
-      exists n0, h'; split; [| split; [| split]]; auto.
+      apply H3; exists n', h'; split; auto.
       constructor; auto.
-    - exfalso.
-      pose proof local_step_label_backward _ _ _ (S r) _ H0 H3.
-      destruct H6 as [n1 [h1 [? [? ?]]]].
-      apply (H1 n1 h1); auto.
-      eapply prefix_history_trans; eauto.
-  + intros [?H | [n0 [h0 [? [? [? [? ?]]]]]]].
+  + intros [? | [n' [h' [? [? [? ?]]]]]].
     - inversion H; subst.
       constructor; auto.
       intros; intro.
-      pose proof local_step_label_backward _ _ _ r (S r) (le_n_Sn _) H2.
-      destruct H3 as [n1 [h1 [? [? ?]]]].
-      apply (H1 n1 h1); auto.
-      eapply prefix_history_trans; eauto.
-    - subst n.
-      inversion H1; subst.
-      constructor; [| econstructor; eauto].
-      intros; intro.
-      inversion H4; subst.
-      rename h'0 into h''.
-      destruct (local_step_label_comparable_history_strict_order _ _ _ _ _ _ _ _ (prefix_history_comparable _ _ _ H0 (prefix_history_trans _ _ _ H9 H)) H7 H8) as [? | [? | ?]]; [omega | | omega].
-      destruct H5 as [? [? _]]; subst h'' n0.
-      pose proof anti_chain_not_comparable _ _ _ H6 H2 H.
-      subst h'.
-      destruct (PrFamily.rf_complete _ _ (l (S n)) h) as [s ?]; [eapply MeasurableSubset_in_domain; eauto |].
-      specialize (H3 _ H5).
-      specialize (H13 _ H5).
-      auto.
+      destruct (local_step_label_strict_backward _ _ _ _ _ (le_n _) H4) as [n'' [h'' [? [? ?]]]].
+      apply (H0 n'' h''); [eapply prefix_history_trans; eauto | auto].
+    - inversion H0; subst.
+      constructor; auto.
+      * intros; intro.
+        rename h'0 into h'', n'0 into n''.
+        destruct (local_step_label_comparable_history_strict_order _ _ _ _ _ _ _ _ (prefix_history_comparable _ _ _ H H3) H7 H4) as [?H | [?H | ?H]]; [| omega | omega].
+        destruct H5 as [? [? _]].
+        apply labeled_in_dir in H4.
+        destruct (ConvergeDir_mono dir (S n') n'' H6 h'' H4) as [h''' [? ?]].
+        pose proof anti_chain_not_comparable (Omegas (S n')) h''' _ (MeasurableSubset_in_domain _ _ _ H9) H1 (prefix_history_trans _ _ _ H8 H3).
+        subst h'''.
+        auto.
+      * intros; intro.
+        rename h'0 into h'', n'0 into n''.
+        destruct (local_step_label_comparable_history_strict_order _ _ _ _ _ _ _ _ (prefix_history_comparable _ _ _ H H3) H7 H4) as [?H | [?H | ?H]]; [| omega | omega].
+        destruct H5 as [? [? _]].
+        apply labeled_in_dir in H4.
+        destruct (ConvergeDir_mono dir (S n') n'' H6 h'' H4) as [h''' [? ?]].
+        pose proof anti_chain_not_comparable (Omegas (S n')) h''' _ (MeasurableSubset_in_domain _ _ _ H9) H1 (prefix_history_trans _ _ _ H8 H3).
+        subst h'''.
+        auto.
+      * pose proof ConvergeDir_uncovered_limit_domain_spec l dir (S n') h.
+        pose proof covered_by_is_element (dir (S n')) (Omegas (S n')) h H1 (MeasurableSubset_in_domain _ _).
+        tauto.
 Qed.
-*)
-Admitted.
 
 Lemma raw_sstate_ActiveBranch_iff: forall m r n h' h s,
   prefix_history h h' ->
