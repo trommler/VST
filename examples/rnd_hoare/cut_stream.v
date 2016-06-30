@@ -684,7 +684,7 @@ Proof.
     - eapply dom_FullStreamEnd; eauto.
 Qed.
 
-
+(* Maybe not necessary, use local_step_rev_mS_SingleStreamEnd_iff*)
 Lemma local_step_rev_SingleStreamEnd_Sn: forall m r h n, local_step_rev m r h (SingleStreamEnd n) -> local_step_rev m (S r) h (SingleStreamEnd n).
 Proof.
   intros.
@@ -728,15 +728,128 @@ Proof.
     apply (RandomVarDomainStream_and_limit_no_strict_conflict Omegas h1 h2); auto.
 Qed.
 
-Lemma raw_sdomains_same_covered: forall m r H H0,
-  same_covered_anti_chain (Build_HistoryAntiChain _ (raw_sdomains m r) H) (Build_HistoryAntiChain _ (raw_sdomains m (S r)) H0).
-Proof.
-Admitted.
-
 Lemma raw_sdomains_forward: forall m r H H0,
   future_anti_chain (Build_HistoryAntiChain _ (raw_sdomains m r) H) (Build_HistoryAntiChain _ (raw_sdomains m (S r)) H0).
 Proof.
-Admitted.
+  intros.
+  hnf; simpl; intros.
+  rewrite raw_sdomains_iff in H1.
+  destruct H1 as [[? | ? |] ?].
+  + rewrite local_step_rev_mS_ActiveBranch_iff in H1.
+    destruct H1 as [n' [h' [? [? [? [? ?]]]]]]; subst n.
+    exists h'; split; auto.
+    simpl.
+    rewrite raw_sdomains_iff; eexists; eauto.
+  + rewrite local_step_rev_mS_SingleStreamEnd_iff in H1.
+    destruct H1.
+    - exists h; split; [apply prefix_history_refl |]; simpl.
+      rewrite raw_sdomains_iff; eexists; eauto.
+    - destruct H1 as [n' [h' [? [? [? [? ?]]]]]]; subst n.
+      exists h'; split; auto.
+      simpl.
+      rewrite raw_sdomains_iff; eexists; eauto.
+  + rewrite local_step_rev_mS_FullStreamEnd_iff in H1.
+    destruct H1.
+    - exists h; split; [apply prefix_history_refl |]; simpl.
+      rewrite raw_sdomains_iff; eexists; eauto.
+    - destruct H1 as [n' [h' [? [? [? ?]]]]].
+      exists h'; split; auto.
+      simpl.
+      rewrite raw_sdomains_iff; eexists; eauto.
+Qed.
+
+Lemma raw_sdomains_same_covered: forall m r H H0,
+  same_covered_anti_chain (Build_HistoryAntiChain _ (raw_sdomains m r) H) (Build_HistoryAntiChain _ (raw_sdomains m (S r)) H0).
+Proof.
+  intros.
+  hnf; split; intros.
+  Focus 2. {
+    destruct H2 as [h' [? ?]].
+    pose proof raw_sdomains_forward m r H H0 _ H3.
+    destruct H4 as [h'' [? ?]].
+    exists h''; split; auto.
+    eapply strict_conflict_or_prefix_backward_left; eauto.
+  } Unfocus.
+  destruct H2 as [h' [? ?]].
+  simpl in H3.
+  rewrite raw_sdomains_iff in H3.
+  destruct H3 as [[? | ? |] ?].
+  + inversion H3; subst.
+    pose proof labeled_in_dir _ _ _ _ H8.
+    pose proof MeasurableSubset_in_domain _ _ _ H4.
+    assert (exists h'', (prefix_history h'' h \/ strict_conflict_history h'' h) /\ Omegas (S n) h'' /\ prefix_history h' h'').
+    Focus 1. {
+      destruct H2.
+      + pose proof rdom_same_covered Omegas n _ H1.
+        destruct H6 as [? _]; specialize (H6 (ex_intro _ h' (conj (or_introl H2) H5))).
+        destruct H6 as [h'' [? ?]].
+        exists h''; split; [| split]; auto.
+        destruct H6.
+        - apply (proj_in_anti_chain_unique (Omegas n) h' h'' h); auto.
+          apply (rdom_forward Omegas n h''); auto.
+        - pose proof strict_conflict_backward_right _ _ _ H6 H2.
+          destruct H9; auto.
+          exfalso. apply (RandomVarDomainStream_no_strict_conflict Omegas _ _ _ _ H7 H5 H9).
+      + destruct (RandomVarDomainStream_hered Omegas n (S n) h' (le_n_Sn _) H5) as [h'' [? ?]].
+        exists h''; split; [| split]; auto.
+        right.
+        eapply strict_conflict_forward_left; eauto.
+    } Unfocus.
+    destruct H6 as [h'' [? [? ?]]]; exists h''; split; auto; simpl.
+    rewrite raw_sdomains_iff.
+    destruct (classic (dir (S n) h'')); [destruct (classic (forall s, l (S n) h'' s -> ~ filter m s)) |].
+    - exists (ActiveBranch (S n)).
+      constructor.
+      econstructor; eauto.
+    - exists (SingleStreamEnd (S n)).
+      constructor.
+      * intros; intro.
+        inversion H13; subst.
+        destruct (local_step_label_comparable_history_strict_order _ _ _ _ _ _ _ _ (prefix_history_comparable _ _ _ H9 (prefix_history_trans _ _ _ H17 H12)) H8 H16) as [? | [? | ?]]; [omega | | omega].
+        destruct H14 as [? [? _]]; subst h'1 n0.
+        pose proof anti_chain_not_comparable  (dir (S n)) _ _ H15 H10 H12.
+        subst h'0.
+        auto.
+      * econstructor; eauto.
+        intros.
+        apply not_all_ex_not in H11.
+        destruct H11 as [s' ?].
+        assert ((l (S n)) h'' s' /\ (filter m) s') by tauto.
+        clear H11; destruct H13.
+        pose proof PrFamily.rf_partial_functionality _ _ _ _ _ _ H11 H12.
+        subst s'.
+        auto.
+    - exists FullStreamEnd.
+      constructor.
+      * intros; intro.
+        inversion H12; subst.
+        destruct (local_step_label_comparable_history_strict_order _ _ _ _ _ _ _ _ (prefix_history_comparable _ _ _ H9 (prefix_history_trans _ _ _ H16 H11)) H8 H15) as [? | [? | ?]]; [omega | | omega].
+        destruct H13 as [? [? _]]; subst h'1 n0.
+        pose proof anti_chain_not_comparable  (Omegas (S n)) _ _ (MeasurableSubset_in_domain _ _ _ H14) H7 H11.
+        subst h'0.
+        auto.
+      * intros; intro.
+        inversion H12; subst.
+        destruct (local_step_label_comparable_history_strict_order _ _ _ _ _ _ _ _ (prefix_history_comparable _ _ _ H9 H11) H8 H12) as [? | [? | ?]]; [| omega | omega].
+        destruct H13 as [? [? _]].
+        pose proof ConvergeDir_mono dir (S n) (S n0) H17 _ H14.
+        destruct H18 as [h''' [? ?]].
+        pose proof MeasurableSubset_in_domain _ _ _ H20.
+        pose proof anti_chain_not_comparable (Omegas (S n)) h''' h'' H21 H7 (prefix_history_trans _ _ _ H18 H11).
+        subst h'''.
+        auto.
+      * pose proof ConvergeDir_uncovered_limit_domain_spec l dir (S n) h''.
+        pose proof covered_by_is_element (dir (S n)) (Omegas (S n)) h'' H7 (MeasurableSubset_in_domain _ _).
+        tauto.
+  + exists h'; split; auto; simpl.
+    rewrite raw_sdomains_iff.
+    exists (SingleStreamEnd n).
+    rewrite local_step_rev_mS_SingleStreamEnd_iff; auto.
+  + exists h'; split; auto; simpl.
+    rewrite raw_sdomains_iff.
+    exists FullStreamEnd.
+    rewrite local_step_rev_mS_FullStreamEnd_iff; auto.
+Qed.
 
 Lemma raw_sstate_partial_functionality: forall m r h s1 s2,
   raw_sstate m r h s1 -> raw_sstate m r h s2 -> s1 = s2.
