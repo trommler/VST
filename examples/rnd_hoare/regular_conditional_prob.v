@@ -324,6 +324,30 @@ Proof.
   rewrite Ensembles_ext.Union_spec; specialize (H1 x). tauto.
 Qed.
 
+Definition Empty_MSet {Omega: measurable_subspace}: measurable_set Omega :=
+  measurable_set_inv (sigma_algebra.Empty_MSet _).
+
+Lemma Empty_set_spec: forall {Omega: measurable_subspace} x, @Empty_MSet Omega x <-> Empty_set _ x.
+Proof.
+  intros.
+  unfold Empty_MSet.
+  rewrite measurable_set_inv_spec.
+  split.
+  + intros [? ?].
+    simpl in H.
+    rewrite Empty_set_spec in H; inversion H.
+  + intros [].
+Qed.
+
+Lemma empty_measurable: forall (Omega: measurable_subspace), is_measurable_set (Empty_set _) Omega.
+Proof.
+  intros.
+  pose proof @Empty_set_spec Omega.
+  eapply is_measurable_set_proper; [| reflexivity | apply (proj2_sig (@Empty_MSet Omega))].
+  rewrite Same_set_spec; intro x.
+  symmetry; exact (Empty_set_spec _).
+Qed.
+
 Lemma Compose_spec: forall {Omega: measurable_subspace} {B C: Type} {SB: SigmaAlgebra B} {SC: SigmaAlgebra C} (g: measurable_function.MeasurableFunction B C) (f: MeasurableFunction Omega B) x c, Compose g f x c <-> exists b, f x b /\ g b c.
 Proof.
   intros.
