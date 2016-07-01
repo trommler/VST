@@ -13,6 +13,54 @@ Require Import RndHoare.pstate_stream_limit.
 Require Import Coq.Classes.Equivalence.
 Require Import Coq.Classes.Morphisms.
 
+Module Type CUT_STREAM.
+
+Section CUT_STREAM.
+
+Context {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {state: Type} {state_sigma: SigmaAlgebra state}.
+
+Parameter sub_domain: forall (filter: nat -> measurable_set (MetaState state)) (Omegas: RandomVarDomainStream) (l: ProgStateStream Omegas state) (dir: ConvergeDir l), nat -> RandomVarDomainStream.
+
+Parameter sub_state: forall (filter: nat -> measurable_set (MetaState state)) (Omegas: RandomVarDomainStream) (l: ProgStateStream Omegas state) (dir: ConvergeDir l) (m: nat), ProgStateStream (sub_domain filter Omegas l dir m) state.
+
+Parameter sub_dir: forall (filter: nat -> measurable_set (MetaState state)) (Omegas: RandomVarDomainStream) (l: ProgStateStream Omegas state) (dir: ConvergeDir l) (m: nat), ConvergeDir (sub_state filter Omegas l dir m).
+
+Parameter main_domain: forall (filter: nat -> measurable_set (MetaState state)) (Omegas: RandomVarDomainStream) (l: ProgStateStream Omegas state) (dir: ConvergeDir l), RandomVarDomainStream.
+
+Parameter main_state: forall (filter: nat -> measurable_set (MetaState state)) (Omegas: RandomVarDomainStream) (l: ProgStateStream Omegas state) (dir: ConvergeDir l), ProgStateStream (main_domain filter Omegas l dir) state.
+
+Parameter main_dir: forall (filter: nat -> measurable_set (MetaState state)) (Omegas: RandomVarDomainStream) (l: ProgStateStream Omegas state) (dir: ConvergeDir l), ConvergeDir (main_state filter Omegas l dir).
+
+Context (filter: nat -> measurable_set (MetaState state)) (Omegas: RandomVarDomainStream) (l: ProgStateStream Omegas state) (dir: ConvergeDir l).
+
+Axiom init_domain_is_limit_domain: forall m, sub_domain filter Omegas l dir(S m) 0 = limit_domain (sub_domain filter Omegas l dir m).
+
+Axiom init_state_is_limit_state: forall m, RandomVar_global_equiv (sub_state filter Omegas l dir (S m) 0) (limit (sub_state filter Omegas l dir m) (sub_dir filter Omegas l dir m)).
+
+Axiom main_domain_sound: forall m, main_domain filter Omegas l dir m = sub_domain filter Omegas l dir m 0.
+
+Axiom main_state_sound: forall m, RandomVar_global_equiv (main_state filter Omegas l dir m) (sub_state filter Omegas l dir m 0).
+
+Axiom main_dir_sound: forall m, Same_set (main_dir filter Omegas l dir m) (sub_dir filter Omegas l dir m 0).
+
+Axiom sub_domain00_sound: sub_domain filter Omegas l dir 0 0 = Omegas 0.
+
+Axiom sub_state00_sound: RandomVar_global_equiv (sub_state filter Omegas l dir 0 0) (l 0).
+
+Axiom sub_dir00_sound: Same_set (sub_dir filter Omegas l dir 0 0) (dir 0).
+
+Axiom limit_domain_sound: limit_domain (main_domain filter Omegas l dir) = limit_domain Omegas.
+
+Axiom limit_state_sound: RandomVar_global_equiv (limit (main_state filter Omegas l dir) (main_dir filter Omegas l dir)) (limit l dir).
+
+Axiom step_sound: forall m r h, sub_dir filter Omegas l dir m r h -> exists n, RandomVar_local_equiv (sub_state filter Omegas l dir m r) (l n) h h /\ forall h', prefix_history h h' -> RandomVar_local_equiv (sub_state filter Omegas l dir m (S r)) (l (S n)) h' h'.
+
+End CUT_STREAM.
+
+End CUT_STREAM.
+
+Module CutStream: CUT_STREAM.
+
 Section CutStream.
 
 Context {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {state: Type} {state_sigma: SigmaAlgebra state}.
@@ -1340,13 +1388,8 @@ Qed.
 Lemma raw_sdomains_00_iff: forall h, raw_sdomains 0 0 h <-> Omegas 0 h.
 Proof.
   intros.
-  rewrite <- local_step_rev_00_iff.
-  split; intros.
-  + inversion H; subst; firstorder.
-  + destruct H as [[? | ? |] ?].
-    - eapply dom_ActiveBranch; eauto.
-    - eapply dom_SingleStreamEnd; eauto.
-    - apply dom_FullStreamEnd; auto.
+  rewrite raw_sdomains_iff.
+  apply local_step_rev_00_iff.
 Qed.
 
 Lemma same_covered0: forall m, same_covered_anti_chain (Build_HistoryAntiChain _ (raw_sdomains m 0) (raw_sdomains_legal m 0)) (Omegas 0).
@@ -1365,5 +1408,75 @@ Definition sub_domain (m: nat): RandomVarDomainStream := sub_domain' m (same_cov
 Definition sub_state (m: nat): ProgStateStream (sub_domain m) state := sub_state' m (same_covered0 m).
 
 Definition sub_dir (m: nat): ConvergeDir (sub_state m) := sub_dir' m (same_covered0 m).
+
+Lemma sub_domain_limit: forall m, (sub_domain (S m)) 0 = limit_domain (sub_domain m).
+Proof.
+  intros.
+  pose proof init_raw_dom_is_limit_dom (sub_domain m) m (fun _ _ => eq_refl).
+  RandomVarDomain_extensionality h.
+  symmetry.
+  apply H.
+Qed.
+
+Definition main_domain: RandomVarDomainStream.
+  refine (Build_RandomVarDomainStream (fun m => sub_domain m 0) _ _).
+  + intros.
+    rewrite limit_domain_same_covered.
+    rewrite sub_domain_limit.
+    reflexivity.
+  + intros.
+    rewrite sub_domain_limit.
+    apply limit_domain_forward.
+Defined.
+
+Definition main_state: ProgStateStream main_domain state := fun m => sub_state m 0.
+
+Definition main_dir: ConvergeDir main_state.
+  refine (Build_ConvergeDir _ _ _ _ (fun m => exist (fun P => PrFamily.is_measurable_set P (main_domain m)) (sub_dir m 0) (proj2_sig (sub_dir m 0))) _ _).
+  admit.
+  admit.
+Defined.
+
+Lemma init_domain_is_limit_domain: forall m, sub_domain (S m) 0 = limit_domain (sub_domain m).
+Proof.
+  intros.
+  pose proof init_raw_dom_is_limit_dom (sub_domain m) m (fun _ _ => eq_refl).
+  RandomVarDomain_extensionality h.
+  symmetry.
+  apply H.
+Qed.
+
+Lemma init_state_is_limit_state: forall m, RandomVar_global_equiv (sub_state (S m) 0) (limit (sub_state m) (sub_dir m)).
+Proof.
+  intros.
+  pose proof init_raw_state_is_limit_state (sub_domain m) (sub_state m) (sub_dir m) m (fun _ _ => eq_refl) (fun _ _ => eq_refl) (fun _ _ _ => eq_refl).
+  hnf; intros; hnf; intros.
+  symmetry; apply H.
+Qed.
+
+Axiom main_domain_sound: forall m, main_domain m = sub_domain m 0.
+
+Axiom main_state_sound: forall m, RandomVar_global_equiv (main_state m) (sub_state m 0).
+
+Axiom main_dir_sound: forall m, Same_set (main_dir m) (sub_dir m 0).
+
+Lemma sub_domain00_sound: sub_domain 0 0 = Omegas 0.
+Proof.
+  intros.
+  RandomVarDomain_extensionality h.
+  apply raw_sdomains_00_iff.
+Qed.
+
+Axiom sub_state00_sound: RandomVar_global_equiv (sub_state 0 0) (l 0).
+
+Axiom sub_dir00_sound: Same_set (sub_dir 0 0) (dir 0).
+
+Axiom limit_domain_sound: limit_domain main_domain = limit_domain Omegas.
+
+Axiom limit_state_sound: RandomVar_global_equiv (limit main_state main_dir) (limit l dir).
+
+Axiom step_sound: forall m r h, sub_dir m r h -> exists n, RandomVar_local_equiv (sub_state m r) (l n) h h /\ forall h', prefix_history h h' -> RandomVar_local_equiv (sub_state m (S r)) (l (S n)) h' h'.
+
+End CutStream.
 
 End CutStream.

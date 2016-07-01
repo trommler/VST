@@ -59,22 +59,37 @@ Section HoareSound.
 
 Context {Nimp: Normal.Imperative} {Nsss: Normal.SmallStepSemantics}.
 
-Lemma Consequence: forall P P' Q Q' c, derives P' P -> derives Q Q' -> triple P c Q -> triple P' c Q'.
+Import PlainAssertion.
+Local Open Scope logic.
+
+Lemma ConsequenceRule: forall Gamma {sG: SigmaAlgebras Gamma} P P' Q Q' c, valid Gamma (imp P' P) -> valid Gamma (imp Q Q') -> triple Gamma P c Q -> triple Gamma P' c Q'.
 Proof.
   intros.
   unfold triple in *.
   intros.
-  specialize (H _ s1); simpl in H.
-  specialize (H0 _ s2); simpl in H0.
-  specialize (H1 o1 s1 (H H2) o2 s2 H3).
-  destruct H1; auto.
+  specialize (H _ (raw_state _ _ s1, gamma1)); simpl in H.
+  specialize (H0 _ (raw_state _ _ s2, gamma2)); simpl in H0.
+  rewrite imp_spec in H.
+  rewrite imp_spec in H0.
+  specialize (H1 o1 s1 gamma1 (H H2) o2 s2 gamma2 H3).
+  auto.
 Qed.
 
+Lemma RVExistentialRule: forall Gamma {sG: SigmaAlgebras Gamma} U {sU: SigmaAlgebra U} P Q c, triple (U :: Gamma) P c Q -> triple Gamma (expR U P) c (expR U Q).
+Proof.
+  intros.
+  unfold triple in *.
+  intros.
+  rewrite (expR_spec _ _ _ P) in H0.
+  destruct H0 as [u ?].
+  specialize (H _ _ _ H0 o2 s2).
+Abort.
+(*
 Lemma Sequence: forall P Q R c1 c2, triple P c1 Q -> triple Q c2 R -> triple P (Ssequence c1 c2) R.
 Proof.
   intros ? ? ? ? ? TRIPLE1 TRIPLE2.
   unfold triple in *; intros.
   destruct H0 as [path [? ?]].
 Abort.
-
+*)
 End HoareSound.

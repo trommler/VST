@@ -1,4 +1,5 @@
 Require Import Coq.Sets.Ensembles.
+Require Import RndHoare.axiom. Import RndHoare.axiom.NatChoice.
 Require Import RndHoare.random_oracle.
 Require Import RndHoare.random_history_order.
 Require Import RndHoare.random_history_conflict.
@@ -49,6 +50,23 @@ Context {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory}.
 
 Global Coercion RandomVarDomain_HistoryAntiChain: RandomVarDomain >-> HistoryAntiChain.
 
+Lemma RandomVarDomain_extensionality {HBSFo: HistoryBasedSigF ora} (O1 O2: RandomVarDomain):
+  (forall h, O1 h <-> O2 h) ->
+  O1 = O2.
+Proof.
+  intros.
+  destruct O1, O2.
+  assert (x = x0).
+  Focus 1. {
+    extensionality h.
+    apply prop_ext; auto.
+  } Unfocus.
+  subst.
+  assert (i = i0) by (apply proof_irrelevance).
+  subst.
+  auto.
+Qed.
+
 Definition RandomVariable {HBSFo: HistoryBasedSigF ora} (Omega: RandomVarDomain) (A: Type) {SA: SigmaAlgebra A}: Type := PrFamily.MeasurableFunction Omega A.
 
 Global Identity Coercion RandomVariable_MeasurableFunction: RandomVariable >-> PrFamily.MeasurableFunction.
@@ -98,6 +116,47 @@ Lemma RandomVarMap_sound: forall {Omega: RandomVarDomain} {A B: Type} {SA: Sigma
   RandomVarMap f v h b <-> exists a, v h a /\ f a b.
 Proof. intros. apply PrFamily.Compose_spec; auto. Qed.
 
+Definition post_dom_var (O1 O2: RandomVarDomain) (Hf: future_anti_chain O1 O2) (Hs: same_covered_anti_chain O1 O2) {A: Type} {SA: SigmaAlgebra A}: RandomVariable O1 A -> RandomVariable O2 A.
+  refine (fun f => PrFamily.Build_MeasurableFunction _ _ _ (fun h a => O2 h /\ exists h', prefix_history h' h /\ f h' a) _ _ _ _).
+  + intros h ? ? [? [h' [? ?]]] [_ [h'' [? ?]]].
+    pose proof PrFamily.rf_sound _ _ f _ _ H1.
+    pose proof PrFamily.rf_sound _ _ f _ _ H3.
+    pose proof anti_chain_not_comparable' O1 _ _ H4 H5 (prefix_history_comparable _ _ _ H0 H2).
+    subst h''.
+    apply (PrFamily.rf_partial_functionality _ _ f _ _ _ H1 H3).
+  + intros h ?.
+    destruct (Hf h H) as [h' [? ?]].
+    destruct (PrFamily.rf_complete _ _ f _ H1) as [b ?].
+    exists b; split; [| exists h']; auto.
+  + intros h ? [? [h' [? ?]]].
+    auto.
+  + intros.
+    eapply PrFamily.is_measurable_set_proper; [| reflexivity |].
+    - instantiate (1 := filter_anti_chain (fun h => covered_by h (filter_anti_chain (fun h => forall b, f h b -> P b) O1)) O2).
+      rewrite Same_set_spec; intro h; simpl.
+      split.
+      * intros [? ?].
+        split; auto.
+        destruct (Hf _ H) as [h' [? ?]].
+        exists h'; split; auto.
+        split; auto.
+        intros b ?; specialize (H0 b).
+        apply H0; split; eauto.
+      * intros [? [h' [? [? ?]]]].
+        split; auto.
+        intros b [? [h'' [? ?]]]; apply (H2 b); clear H2.
+        pose proof PrFamily.rf_sound _ _ f _ _ H5.
+        pose proof anti_chain_not_comparable' O1 _ _ H1 H2 (prefix_history_comparable _ _ _ H0 H4).
+        subst h''; auto.
+    - apply (is_measurable_set_same_covered O1 O2 (filter_anti_chain (fun h0 => forall b, f h0 b -> P b) O1)).
+      * intros ? [? ?]; auto.
+      * intros ? [? ?]; auto.
+      * auto.
+      * apply same_covered_future_anti_chain_subset1 with O1; auto.
+        intros ? [? ?]; auto.
+      * apply (PrFamily.rf_preserve _ _ f).
+Qed.
+
 Record HeredRandomVariable (A: Type) {SA: SigmaAlgebra A}: Type := {
   well_defined_dom: RandomVarDomain -> Prop;
   well_defined_mono: forall (O1 O2: RandomVarDomain), future_anti_chain O1 O2 -> well_defined_dom O1 -> well_defined_dom O2;
@@ -129,6 +188,11 @@ End RV.
 
 End RV.
 
+Tactic Notation "RandomVarDomain_extensionality" ident(x) :=
+  match goal with
+    [ |- ?X = ?Y ] =>
+     apply RandomVarDomain_extensionality; intro x
+  end.
 
 
 (*

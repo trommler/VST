@@ -140,14 +140,13 @@ Global Identity Coercion global_state_ProgState: global_state >-> ProgState.
 Definition command_oaccess (c: cmd) {O1 O2: RandomVarDomain} (src: global_state O1) (dst: global_state O2): Prop :=
   omega_access (ProgState_pair_left c src) (ProgState_pair_left Sskip dst).
 
-Definition assertion: Type := RandomPred (MetaState (@state imp sss) :: nil).
+Import PlainAssertion.
+Local Open Scope logic.
 
-Global Identity Coercion assertion_RandomPred: assertion >-> RandomPred.
- 
-Definition triple (P: assertion) (c: cmd) (Q: assertion): Prop :=
-  forall o1 (s1: global_state o1), P o1 s1 ->
-    forall o2 (s2: global_state o2), command_oaccess c s1 s2 ->
-      same_covered_anti_chain o1 o2 /\ Q o2 s2.
+Definition triple (Gamma: list Type) {sG: SigmaAlgebras Gamma} (P: assertion (MetaState state) Gamma) (c: cmd) (Q: assertion (MetaState state) Gamma): Prop :=
+  forall o1 (s1: global_state o1) (gamma1: _RVProdType o1 Gamma), (raw_state _ _ s1, gamma1) |== P ->
+    forall o2 (s2: global_state o2) (gamma2: _RVProdType o2 Gamma), command_oaccess c s1 s2 ->
+      (raw_state _ _ s2, gamma2) |== Q.
 
 (*
 Definition filter_global_state {imp: Imperative} {sss: SmallStepSemantics} (filter: RandomHistory -> Prop) (s: global_state): global_state.

@@ -1,4 +1,5 @@
 Require Import Coq.Sets.Ensembles.
+Require Import Coq.Lists.List.
 Require Import Coq.Logic.Classical.
 Require Import RndHoare.sigma_algebra.
 Require Import RndHoare.measurable_function.
@@ -9,213 +10,172 @@ Require Import RndHoare.random_history_conflict.
 Require Import RndHoare.history_anti_chain.
 Require Import RndHoare.random_variable.
 
-Section Predicates.
+Section PredicatesType.
 
 Context {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora}.
 
 Fixpoint _SigmaAlgebras (As: list Type): Type :=
   match As with 
   | nil => unit
-  | cons A As0 => (SigmaAlgebra A * _SigmaAlgebras As0)%type
+  | cons A As0 => (_SigmaAlgebras As0 * SigmaAlgebra A)%type
   end.
 
 Class SigmaAlgebras (As: list Type): Type := sigma_algebras: _SigmaAlgebras As.
 
 Instance nil_SigmaAlgebras: SigmaAlgebras nil := tt.
 
-Instance cons_SigmaAlgebras (A: Type) (As0: list Type) {sA: SigmaAlgebra A} {sAs: SigmaAlgebras As0}: SigmaAlgebras (cons A As0) := (sA, @sigma_algebras _ sAs).
+Instance cons_SigmaAlgebras (A: Type) (As0: list Type) {sA: SigmaAlgebra A} {sAs: SigmaAlgebras As0}: SigmaAlgebras (cons A As0) := (@sigma_algebras _ sAs, sA).
 
 Global Existing Instances nil_SigmaAlgebras cons_SigmaAlgebras.
 
-Definition head_SigmaAlgebra (A: Type) (As0: list Type) {sAs: SigmaAlgebras (cons A As0)}: SigmaAlgebra A := fst sigma_algebras.
+Definition head_SigmaAlgebra (A: Type) (As0: list Type) {sAs: SigmaAlgebras (cons A As0)}: SigmaAlgebra A := snd sigma_algebras.
 
-Definition tail_SigmaAlgebra (A: Type) (As0: list Type) {sAs: SigmaAlgebras (cons A As0)}: SigmaAlgebras As0 := snd sigma_algebras.
+Definition tail_SigmaAlgebra (A: Type) (As0: list Type) {sAs: SigmaAlgebras (cons A As0)}: SigmaAlgebras As0 := fst sigma_algebras.
 
-Definition _RandomPred (Omega: RandomVarDomain): forall (As: list Type) {sAs: SigmaAlgebras As}, Type :=
-  fix RandomPred (As: list Type): SigmaAlgebras As -> Type :=
-    match As as As_PAT return SigmaAlgebras As_PAT -> Type with
-    | nil => fun _ => Prop
-    | cons A As0 => fun sAs => @RandomVariable _ _ _ Omega A (head_SigmaAlgebra A As0) -> RandomPred As0 (tail_SigmaAlgebra A As0)
-    end.
+Fixpoint _RVProdType (Omega: RandomVarDomain) (As: list Type): forall {sAs: SigmaAlgebras As}, Type :=
+  match As as As_PAT return SigmaAlgebras As_PAT -> Type with
+  | nil => fun _ => unit
+  | cons A As0 => fun sAs => (@_RVProdType Omega As0 (@tail_SigmaAlgebra _ _ sAs) *
+                              @RandomVariable _ _ _ Omega A (@head_SigmaAlgebra _ _ sAs))%type
+  end.
 
-Definition _RandomPred_consi (Omega1 Omega2: RandomVarDomain): forall (As: list Type) {sAs: SigmaAlgebras As}, _RandomPred Omega1 As -> _RandomPred Omega2 As -> Prop :=
-  fix RandomPred_consi (As: list Type): forall (sAs: SigmaAlgebras As), @_RandomPred Omega1 As sAs -> @_RandomPred Omega2 As sAs -> Prop :=
-    match As as As_PAT return forall (sAs_PAT: SigmaAlgebras As_PAT), @_RandomPred Omega1 As_PAT sAs_PAT -> @_RandomPred Omega2 As_PAT sAs_PAT -> Prop
+Definition RVProdType (Omega: RandomVarDomain) (A0: Type) {sA0: SigmaAlgebra A0} (As: list Type) {sAs: SigmaAlgebras As}: Type := (RandomVariable Omega A0 * _RVProdType Omega As)%type.
+
+Definition _post_prod {Omega Omega': RandomVarDomain} (Hf: future_anti_chain Omega Omega') (Hs: same_covered_anti_chain Omega Omega') : forall {As: list Type} {sAs: SigmaAlgebras As} (rho: _RVProdType Omega As), _RVProdType Omega' As :=
+  fix PPV As: forall (sAs: SigmaAlgebras As) (rho: _RVProdType Omega As), _RVProdType Omega' As :=
+    match As as As_PAT
+      return forall (sAs: SigmaAlgebras As_PAT) (rho: _RVProdType Omega As_PAT), _RVProdType Omega' As_PAT
     with
-    | nil => fun _ P1 P2 => P1 <-> P2
-    | cons A As0 => fun sAs P1 P2 => forall a1 a2, (forall h, Omega1 h -> Omega2 h -> RandomVar_local_equiv a1 a2 h h) -> RandomPred_consi As0 (tail_SigmaAlgebra A As0) (P1 a1) (P2 a2)
+    | nil => fun _ _ => tt
+    | A :: As0 => fun sAs rho => (PPV As0 (tail_SigmaAlgebra A As0) (fst rho), post_dom_var _ _ Hf Hs (snd rho))
     end.
 
-Definition RandomPred (As: list Type) {sAs: SigmaAlgebras As}: Type := {P: forall (Omega: RandomVarDomain), _RandomPred Omega As | forall O1 O2, undistinguishable_sub_domain O1 O2 -> _RandomPred_consi O1 O2 As (P O1) (P O2)}.
+Definition post_prod {Omega Omega': RandomVarDomain} (Hf: future_anti_chain Omega Omega') (Hs: same_covered_anti_chain Omega Omega') {A0: Type} {sA0: SigmaAlgebra A0} (a': RandomVariable Omega' A0) {As: list Type} {sAs: SigmaAlgebras As} (rho: RVProdType Omega A0 As): RVProdType Omega' A0 As :=
+  (a', _post_prod Hf Hs (snd rho)).
 
-Definition RandomPred_Func {As: list Type} {sAs: SigmaAlgebras As}: RandomPred As -> forall (Omega: RandomVarDomain), _RandomPred Omega As := @proj1_sig _ _.
+End PredicatesType.
 
-Global Coercion RandomPred_Func: RandomPred >-> Funclass.
+Module Type ASSERTION.
 
-Definition _prop (Omega: RandomVarDomain): forall (As: list Type) {sAs: SigmaAlgebras As} (P: Prop), _RandomPred Omega As :=
-  fix prop (As: list Type): forall (sAs: SigmaAlgebras As) (P: Prop), _RandomPred Omega As :=
-  match As as As_PAT return (forall (sAs: SigmaAlgebras As_PAT) (P: Prop), _RandomPred Omega As_PAT) with
-  | nil => fun sAs P => P
-  | cons A As0 => fun sAs P => fun _ => prop As0 (tail_SigmaAlgebra A As0) P
-  end.
+Parameter assertion: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} (A0: Type) {sA0: SigmaAlgebra A0} (As: list Type) {sAs: SigmaAlgebras As}, Type.
 
-Definition _andp (Omega: RandomVarDomain): forall (As: list Type) {sAs: SigmaAlgebras As}, _RandomPred Omega As -> _RandomPred Omega As -> _RandomPred Omega As :=
-  fix andp (As: list Type): forall sAs: SigmaAlgebras As, _RandomPred Omega As -> _RandomPred Omega As -> _RandomPred Omega As :=
-  match As as As_PAT return (forall sAs: SigmaAlgebras As_PAT, _RandomPred Omega As_PAT -> _RandomPred Omega As_PAT -> _RandomPred Omega As_PAT) with
-  | nil => fun sAs P Q => P /\ Q
-  | cons A As0 => fun sAs P Q => fun rho => andp As0 (tail_SigmaAlgebra A As0) (P rho) (Q rho)
-  end.
+Parameter andp: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As} (P Q: assertion A0 As), assertion A0 As.
 
-Definition _orp (Omega: RandomVarDomain): forall (As: list Type) {sAs: SigmaAlgebras As}, _RandomPred Omega As -> _RandomPred Omega As -> _RandomPred Omega As :=
-  fix orp (As: list Type): forall sAs: SigmaAlgebras As, _RandomPred Omega As -> _RandomPred Omega As -> _RandomPred Omega As :=
-  match As as As_PAT return (forall sAs: SigmaAlgebras As_PAT, _RandomPred Omega As_PAT -> _RandomPred Omega As_PAT -> _RandomPred Omega As_PAT) with
-  | nil => fun sAs P Q => P \/ Q
-  | cons A As0 => fun sAs P Q => fun rho => orp As0 (tail_SigmaAlgebra A As0) (P rho) (Q rho)
-  end.
+Parameter orp: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As} (P Q: assertion A0 As), assertion A0 As.
 
-Definition _imp (Omega: RandomVarDomain): forall (As: list Type) {sAs: SigmaAlgebras As}, _RandomPred Omega As -> _RandomPred Omega As -> _RandomPred Omega As :=
-  fix imp (As: list Type): forall sAs: SigmaAlgebras As, _RandomPred Omega As -> _RandomPred Omega As -> _RandomPred Omega As :=
-  match As as As_PAT return (forall sAs: SigmaAlgebras As_PAT, _RandomPred Omega As_PAT -> _RandomPred Omega As_PAT -> _RandomPred Omega As_PAT) with
-  | nil => fun sAs P Q => P \/ Q
-  | cons A As0 => fun sAs P Q => fun rho => imp As0 (tail_SigmaAlgebra A As0) (P rho) (Q rho)
-  end.
+Parameter imp: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As} (P Q: assertion A0 As), assertion A0 As.
 
-Definition _exp (Omega: RandomVarDomain): forall (As: list Type) {sAs: SigmaAlgebras As} {B: Type}, (B -> _RandomPred Omega As) -> _RandomPred Omega As :=
-  fix exp (As: list Type): forall (sAs: SigmaAlgebras As) (B: Type), (B -> _RandomPred Omega As) -> _RandomPred Omega As :=
-  match As as As_PAT return (forall (sAs: SigmaAlgebras As_PAT) (B: Type), (B -> _RandomPred Omega As_PAT) -> _RandomPred Omega As_PAT) with
-  | nil => fun sAs B (P: B -> Prop) => ex P
-  | cons A As0 => fun sAs B P => fun rho => exp As0 (tail_SigmaAlgebra A As0) B (fun b => P b rho)
-  end.
+Parameter exp: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As} (B: Type) (P: B -> assertion A0 As), assertion A0 As.
 
-Definition _expR (Omega: RandomVarDomain): forall (As: list Type) {sAs: SigmaAlgebras As} (B: Type) {sB: SigmaAlgebra B}, (RandomVariable Omega B -> _RandomPred Omega As) -> _RandomPred Omega As :=
-  fix expR (As: list Type): forall (sAs: SigmaAlgebras As) (B: Type) (sB: SigmaAlgebra B), (RandomVariable Omega B -> _RandomPred Omega As) -> _RandomPred Omega As :=
-  match As as As_PAT return (forall (sAs: SigmaAlgebras As_PAT) (B: Type) (sB: SigmaAlgebra B), (RandomVariable Omega B -> _RandomPred Omega As_PAT) -> _RandomPred Omega As_PAT) with
-  | nil => fun sAs B sB (P: RandomVariable Omega B -> Prop) =>
-              exists (b: HeredRandomVariable B) (H: well_defined_dom _ b Omega), P (ex_value _ b Omega H)
-  | cons A As0 => fun sAs B sB P => fun rho => expR As0 (tail_SigmaAlgebra A As0) B sB (fun b => P b rho)
-  end.
+Parameter expR: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As} (B: Type) {sB: SigmaAlgebra B} (P: assertion A0 (B :: As)), assertion A0 As.
 
-Definition _appp (Omega: RandomVarDomain): forall (As: list Type) {sAs: SigmaAlgebras As} (B: Type) {sB: SigmaAlgebra B}, HeredRandomVariable B -> (RandomVariable Omega B -> _RandomPred Omega As) -> _RandomPred Omega As :=
-  fix appp (As: list Type): forall (sAs: SigmaAlgebras As) (B: Type) (sB: SigmaAlgebra B), HeredRandomVariable B -> (RandomVariable Omega B -> _RandomPred Omega As) -> _RandomPred Omega As :=
-  match As as As_PAT return (forall (sAs: SigmaAlgebras As_PAT) (B: Type) (sB: SigmaAlgebra B), HeredRandomVariable B -> (RandomVariable Omega B -> _RandomPred Omega As_PAT) -> _RandomPred Omega As_PAT) with
-  | nil => fun sAs B sB b (P: RandomVariable Omega B -> Prop) =>
-              exists (H: well_defined_dom _ b Omega), P (ex_value _ b Omega H)
-  | cons A As0 => fun sAs B sB b P => fun rho => appp As0 (tail_SigmaAlgebra A As0) B sB b (fun b => P b rho)
-  end.
+Parameter satisfy: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As} {Omega: RandomVarDomain} (rho: RVProdType Omega A0 As) (P: assertion A0 As), Prop.
 
-Definition _derives (Omega: RandomVarDomain): forall (As: list Type) {sAs: SigmaAlgebras As}, _RandomPred Omega As -> _RandomPred Omega As -> Prop :=
-  fix derives (As: list Type): forall sAs: SigmaAlgebras As, _RandomPred Omega As -> _RandomPred Omega As -> Prop :=
-  match As as As_PAT return (forall sAs: SigmaAlgebras As_PAT, _RandomPred Omega As_PAT -> _RandomPred Omega As_PAT -> Prop) with
-  | nil => fun sAs P Q => P -> Q
-  | cons A As0 => fun sAs P Q => forall rho, derives As0 (tail_SigmaAlgebra A As0) (P rho) (Q rho)
-  end.
+Definition valid {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} (As: list Type) {sAs: SigmaAlgebras As} (P: assertion A0 As): Prop := forall Omega (rho: RVProdType Omega A0 As), satisfy rho P.
 
-Definition prop {As: list Type} {sAs: SigmaAlgebras As} (P: Prop): RandomPred As.
-  exists (fun Omega: RandomVarDomain => _prop Omega As P).
+Infix "||" := orp (at level 50, left associativity) : logic.
+Infix "&&" := andp (at level 40, left associativity) : logic.
+Infix "-->" := imp (at level 55, right associativity) : logic.
+Notation "rho |== P" := (satisfy rho P) (at level 60, no associativity) : logic.
+Local Open Scope logic.
+
+Section ASSERTION.
+
+Context {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As}.
+
+Axiom andp_spec: forall {Omega} (rho: RVProdType Omega A0 As) (P Q: assertion A0 As), rho |== P && Q <-> rho |== P /\ rho |== Q.
+
+Axiom orp_spec: forall {Omega} (rho: RVProdType Omega A0 As) (P Q: assertion A0 As), rho |== P || Q <-> rho |== P \/ rho |== Q.
+
+Axiom imp_spec: forall {Omega} (rho: RVProdType Omega A0 As) (P Q: assertion A0 As), rho |== P --> Q <-> rho |== P -> rho |== Q.
+
+Axiom exp_spec: forall {Omega} (U: Type) (rho: RVProdType Omega A0 As) (P: U -> assertion A0 As), rho |== exp U P <-> exists u, rho |== P u.
+
+Axiom expR_spec: forall {Omega} (U: Type) {sU: SigmaAlgebra U} (a: RandomVariable Omega A0) (gamma: _RVProdType Omega As) (P: assertion A0 (U :: As)), (a, gamma) |== expR U P <-> exists u, ((a, (gamma, u)): RVProdType _ A0 (U :: As)) |== P.
+
+End ASSERTION.
+
+End ASSERTION.
+
+Module PlainAssertion: ASSERTION.
+
+Section PlainAssertion.
+
+Context {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora}.
+
+Definition assertion (A0: Type) {sA0: SigmaAlgebra A0} (As: list Type) {sAs: SigmaAlgebras As}: Type := forall (Omega: RandomVarDomain), RVProdType Omega A0 As -> Prop.
+
+Section Definitions.
+
+Context {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As}.
+
+Definition andp (P Q: @assertion A0 sA0 As sAs): assertion A0 As := fun Omega rho => P Omega rho /\ Q Omega rho.
+
+Definition orp (P Q: @assertion A0 sA0 As sAs): assertion A0 As := fun Omega rho => P Omega rho \/ Q Omega rho.
+
+Definition imp (P Q: @assertion A0 sA0 As sAs): assertion A0 As := fun Omega rho => P Omega rho -> Q Omega rho.
+
+Definition exp (B: Type) (P: B -> @assertion A0 sA0 As sAs): assertion A0 As := fun Omega rho => exists b: B, P b Omega rho.
+
+Definition expR (B: Type) {sB: SigmaAlgebra B} (P: @assertion A0 sA0 (B :: As) (sAs, sB)): assertion A0 As := fun Omega rho => exists b: RandomVariable Omega B, P Omega (fst rho, (snd rho, b)).
+
+Definition satisfy {Omega: RandomVarDomain} (rho: RVProdType Omega A0 As) (P: assertion A0 As): Prop := P Omega rho.
+
+Definition valid {A0: Type} {sA0: SigmaAlgebra A0} (As: list Type) {sAs: SigmaAlgebras As} (P: assertion A0 As): Prop := forall Omega (rho: RVProdType Omega A0 As), P Omega rho.
+
+End Definitions.
+
+Section Lemmas.
+
+Context {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As}.
+
+Infix "||" := orp (at level 50, left associativity) : logic.
+Infix "&&" := andp (at level 40, left associativity) : logic.
+Infix "-->" := imp (at level 55, right associativity) : logic.
+Notation "rho |== P" := (satisfy rho P) (at level 60, no associativity) : logic.
+Local Open Scope logic.
+
+Lemma andp_spec: forall {Omega} (rho: RVProdType Omega A0 As) (P Q: assertion A0 As), rho |== P && Q <-> rho |== P /\ rho |== Q.
+Proof.
   intros.
-  induction As.
-  + simpl.
-    tauto.
-  + simpl.
-    intros; apply IHAs.
-Defined.
+  unfold satisfy, andp.
+  tauto.
+Qed.
 
-Definition andp {As: list Type} {sAs: SigmaAlgebras As} (P Q: RandomPred As): RandomPred As.
-  exists (fun Omega: RandomVarDomain => _andp Omega As (P Omega) (Q Omega)).
-  destruct P as [P ?H], Q as [Q ?H].
-  intros; simpl in *.
-  specialize (H O1 O2 H1); specialize (H0 O1 O2 H1).
-  set (P1 := P O1) in *; set (P2 := P O2) in *; set (Q1 := Q O1) in *; set (Q2 := Q O2) in *.
-  clearbody P1 P2 Q1 Q2.
-  clear P Q.
-  induction As.
-  + simpl in *.
-    tauto.
-  + simpl.
-    intros.
-    apply IHAs; auto.
-Defined.
+Lemma orp_spec: forall {Omega} (rho: RVProdType Omega A0 As) (P Q: assertion A0 As), rho |== P || Q <-> rho |== P \/ rho |== Q.
+Proof.
+  intros.
+  unfold satisfy, orp.
+  tauto.
+Qed.
 
-Definition orp {As: list Type} {sAs: SigmaAlgebras As} (P Q: RandomPred As): RandomPred As.
-  exists (fun Omega: RandomVarDomain => _orp Omega As (P Omega) (Q Omega)).
-  destruct P as [P ?H], Q as [Q ?H].
-  intros; simpl in *.
-  specialize (H O1 O2 H1); specialize (H0 O1 O2 H1).
-  set (P1 := P O1) in *; set (P2 := P O2) in *; set (Q1 := Q O1) in *; set (Q2 := Q O2) in *.
-  clearbody P1 P2 Q1 Q2.
-  clear P Q.
-  induction As.
-  + simpl in *.
-    tauto.
-  + simpl.
-    intros.
-    apply IHAs; auto.
-Defined.
+Lemma imp_spec: forall {Omega} (rho: RVProdType Omega A0 As) (P Q: assertion A0 As), rho |== P --> Q <-> rho |== P -> rho |== Q.
+Proof.
+  intros.
+  unfold satisfy, imp.
+  tauto.
+Qed.
 
-Definition imp {As: list Type} {sAs: SigmaAlgebras As} (P Q: RandomPred As): RandomPred As.
-  exists (fun Omega: RandomVarDomain => _imp Omega As (P Omega) (Q Omega)).
-  destruct P as [P ?H], Q as [Q ?H].
-  intros; simpl in *.
-  specialize (H O1 O2 H1); specialize (H0 O1 O2 H1).
-  set (P1 := P O1) in *; set (P2 := P O2) in *; set (Q1 := Q O1) in *; set (Q2 := Q O2) in *.
-  clearbody P1 P2 Q1 Q2.
-  clear P Q.
-  induction As.
-  + simpl in *.
-    tauto.
-  + simpl.
-    intros.
-    apply IHAs; auto.
-Defined.
+Lemma exp_spec: forall {Omega} (U: Type) (rho: RVProdType Omega A0 As) (P: U -> assertion A0 As), rho |== exp U P <-> exists u, rho |== P u.
+Proof.
+  intros.
+  unfold satisfy, exp.
+  reflexivity.
+Qed.
 
-(*
-Definition exp {As: list Type} {sAs: SigmaAlgebras As} {B: Type} (P: B -> RandomPred As): RandomPred As.
-  exists (fun Omega: RandomVarDomain => _exp Omega As (fun b => P b Omega)).
-  intros; simpl in *.
-  specialize (H O1 O2 H1).
-  set (P1 := P O1) in *; set (P2 := P O2) in *; set (Q1 := Q O1) in *; set (Q2 := Q O2) in *.
-  clearbody P1 P2 Q1 Q2.
-  clear P Q.
-  induction As.
-  + simpl in *.
-    tauto.
-  + simpl.
-    intros.
-    apply IHAs; auto.
-Defined.
+Lemma expR_spec: forall {Omega} (U: Type) {sU: SigmaAlgebra U} (a: RandomVariable Omega A0) (gamma: _RVProdType Omega As) (P: assertion A0 (U :: As)), (a, gamma) |== expR U P <-> exists u, 
+@satisfy A0 sA0 (U :: As) (cons_SigmaAlgebras U As) Omega (a, (gamma, u)) P.
+Proof.
+  intros.
+  unfold satisfy, expR.
+  simpl.
+  reflexivity.
+Qed.
 
-Definition expR {As: list Type} {sAs: SigmaAlgebras As} {B: Type} {sB: SigmaAlgebra B} (P: RandomPred (B :: As)): RandomPred As := fun Omega: RandomVarDomain => _expR Omega As B (fun b => P Omega b).
+End Lemmas.
 
-Definition appp {As: list Type} {sAs: SigmaAlgebras As} {B: Type} {sB: SigmaAlgebra B} (P: RandomPred (B :: As)) (b: HeredRandomVariable B): RandomPred As := fun Omega: RandomVarDomain => _appp Omega As B b (P Omega).
-*)
+End PlainAssertion.
 
-Definition derives {As: list Type} {sAs: SigmaAlgebras As} (P Q: RandomPred As): Prop := forall Omega: RandomVarDomain, _derives Omega As (P Omega) (Q Omega).
+End PlainAssertion.
 
-End Predicates.
 
-(*
-
-(*
-
-Definition PTriple (P: global_state -> Prop) (c: cmd) (Q: global_state -> Prop): Prop :=
-  forall (s1: global_state),
-    P s1 ->
-    nPr s1 = 0 ->
-    forall (s2: global_state),
-      command_oaccess c (proj1_sig s1) (proj1_sig s2) ->
-      same_covered_domain (rv_domain _ (proj1_sig s1)) (rv_domain _ (proj1_sig s2)) /\
-      (nPr s2 = 0 -> Q s2).
-
-Definition TTriple (P: global_state -> Prop) (c: cmd) (Q: global_state -> Prop): Prop :=
-  forall (s1: global_state),
-    P s1 ->
-    nPr s1 = 0 ->
-    forall (s2: global_state),
-      command_oaccess c (proj1_sig s1) (proj1_sig s2) ->
-      same_covered_domain (rv_domain _ (proj1_sig s1)) (rv_domain _ (proj1_sig s2)) /\
-      nPr s2 = 0 /\
-      Q s2.
-
-Require Import Morphisms.
-*)
-*)

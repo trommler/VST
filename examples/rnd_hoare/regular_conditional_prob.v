@@ -1,6 +1,5 @@
 Require Export Coq.Reals.Rdefinitions.
 Require Export Coq.Reals.Rfunctions.
-Require Export Coq.Logic.ProofIrrelevance.
 Require Import RndHoare.sigma_algebra.
 Require Import RndHoare.measurable_function.
 Require Import RndHoare.probability_measure.
