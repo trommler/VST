@@ -17,6 +17,32 @@ Class HistoryBasedSigF (ora: RandomOracle) {SFo: SigmaAlgebraFamily RandomHistor
   max_anti_chain_measurable: forall P, is_max_anti_chain P -> is_measurable_subspace P
 }.
 
+Lemma is_measurable_set_same_covered1: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} (Omega: RandomVarDomain) (P1 P2: HistoryAntiChain), Included P1 (RandomVarDomain_HistoryAntiChain Omega) -> Included P2 (RandomVarDomain_HistoryAntiChain Omega) -> same_covered_anti_chain P1 P2 -> PrFamily.is_measurable_set P1 Omega -> PrFamily.is_measurable_set P2 Omega.
+Proof.
+  intros.
+  eapply is_measurable_set_same_covered.
+  + exact H.
+  + exact H0.
+  + reflexivity.
+  + exact H1.
+  + auto.
+Qed.
+
+Lemma is_measurable_set_same_covered2: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} (O1 O2: RandomVarDomain) (P: Ensemble RandomHistory), Included P (RandomVarDomain_HistoryAntiChain O1) -> Included P (RandomVarDomain_HistoryAntiChain O2) -> same_covered_anti_chain (RandomVarDomain_HistoryAntiChain O1) (RandomVarDomain_HistoryAntiChain O2) -> PrFamily.is_measurable_set P O1 -> PrFamily.is_measurable_set P O2.
+Proof.
+  intros.
+  assert (LegalHistoryAntiChain P).
+  + eapply LegalHistoryAntiChain_Included; eauto.
+    apply (raw_anti_chain_legal _).
+  + change P with (Build_HistoryAntiChain _ P H3: Ensemble RandomHistory).
+    eapply (is_measurable_set_same_covered O1 O2 (Build_HistoryAntiChain _ P H3)).
+    - exact H.
+    - exact H0.
+    - auto.
+    - reflexivity.
+    - auto.
+Qed.
+
 Section RandomVariable.
 
 Context {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory}.

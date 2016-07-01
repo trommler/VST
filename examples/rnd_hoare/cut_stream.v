@@ -1049,12 +1049,63 @@ Lemma SingleStreamEnd_preserve: forall m r n (P: measurable_set (MetaState state
   PrFamily.is_measurable_set
     (fun h => local_step_rev m r h (SingleStreamEnd n) /\ (forall s : MetaState state, (l n) h s -> P s))
     (Omegas n).
-Admitted.
+Proof.
+  intros.
+  destruct n.
+  Focus 1. {
+    eapply PrFamily.is_measurable_set_proper; [| reflexivity | apply PrFamily.empty_measurable].
+    rewrite Same_set_spec; intro h.
+    split; [| intros []].
+    intros [? ?].
+    inversion H; subst.
+    inversion H6.
+  } Unfocus.
+
+  eapply PrFamily.is_measurable_set_proper; [| reflexivity |].
+  + instantiate (1 := Intersection _ (Intersection _
+      (Countable_Union _ (fun r' => Intersection _ (fun _ => r' < r) (MeasurableSubset_stream_proj Omegas n (exist (fun P => PrFamily.is_measurable_set P (Omegas n)) (fun h' => local_step_label n h' m r') (local_step_label_measurable _ _ _)))))
+      (fun h => local_step_label (S n) h (S m) 0))
+      (fun h => Omegas (S n) h /\ (forall s, (l (S n)) h s -> P s))).
+    rewrite Same_set_spec; intros h.
+    rewrite !Intersection_spec; unfold Complement, Ensembles.In, Countable_Union.
+    split; intros.
+    - destruct H; inversion H; subst.
+      split; [split | split]; auto.
+      * inversion H6; subst.
+        exists r0.
+        rewrite Intersection_spec.
+        split; [| split; [eapply MeasurableSubset_in_domain; eauto | exists h'; split; auto]].
+        destruct (le_dec r r0) as [?H |]; [| omega]; exfalso.
+        pose proof local_step_label_backward _ _ _ _ _ H1 H5.
+        destruct H3 as [n1 [h1 [? [? ?]]]].
+        apply (H2 n1 h1); auto.
+        eapply prefix_history_trans; eauto.
+      * apply labeled_in_dir in H6; eapply MeasurableSubset_in_domain, H6.
+    - destruct H as [[? ?] [? ?]].
+      split; auto.
+      econstructor; eauto.
+      intros; intro.
+      destruct H as [r0 ?].
+      rewrite Intersection_spec in H.
+      destruct H as [? [? [h0 [? ?]]]].
+      pose proof local_step_label_comparable_history_strict_order _ _ _ _ _ _ _ _ (prefix_history_comparable _ _ _ H6 H3) H7 H4 as [?H | [?H | ?H]]; [| omega | omega].
+      destruct H8 as [? [? _]].
+      pose proof local_step_label_comparable_history_strict_order _ _ _ _ _ _ _ _ (or_introl H3) H4 H0 as [?H | [?H | ?H]]; omega.
+  + apply PrFamily.intersection_measurable; [apply PrFamily.intersection_measurable |].
+    - apply PrFamily.countable_union_measurable; intros r0.
+      apply PrFamily.intersection_const_measurable.
+      match goal with | |- _ _ (_ (_ ?A)) _ => apply (proj2_sig A) end.
+    - apply local_step_label_measurable.
+    - apply (PrFamily.rf_preserve _ _ (l (S n))).
+Qed.
 
 Lemma FullStreamEnd_preserve: forall m r (P: measurable_set (MetaState state)),
   PrFamily.is_measurable_set
     (fun h => local_step_rev m r h FullStreamEnd /\ (forall s : MetaState state, limit l dir h s -> P s))
     (limit_domain Omegas).
+Proof.
+  intros.
+  eapply PrFamily.is_measurable_set_proper; [| reflexivity |].
 Admitted.
 
 Lemma raw_sstate_preserve: forall m r H (P: measurable_set (MetaState state)),
@@ -1103,8 +1154,47 @@ Proof.
   Focus 1. {
     eapply PrFamily.is_measurable_set_proper; [exact H0 | reflexivity |].
     apply PrFamily.union_measurable; [apply PrFamily.union_measurable; apply PrFamily.countable_union_measurable; intros n |].
-    + 
-Admitted.
+    + apply is_measurable_set_same_covered2 with (Omegas n).
+      - unfold Included, Ensembles.In.
+        clear.
+        intros h [? _].
+        inversion H; subst.
+        apply labeled_in_dir in H4; eapply MeasurableSubset_in_domain; eauto.
+      - unfold Included, Ensembles.In.
+        clear.
+        intros h [? _].
+        simpl.
+        rewrite raw_sdomains_iff; eauto.
+      - symmetry; apply H_sc.
+      - apply ActiveBranch_preserve.
+    + apply is_measurable_set_same_covered2 with (Omegas n).
+      - unfold Included, Ensembles.In.
+        clear.
+        intros h [? _].
+        inversion H; subst.
+        apply labeled_in_dir in H5; eapply MeasurableSubset_in_domain; eauto.
+      - unfold Included, Ensembles.In.
+        clear.
+        intros h [? _].
+        simpl.
+        rewrite raw_sdomains_iff; eauto.
+      - symmetry; apply H_sc.
+      - apply SingleStreamEnd_preserve.
+    + apply is_measurable_set_same_covered2 with (limit_domain Omegas).
+      - unfold Included, Ensembles.In.
+        clear.
+        intros h [? _].
+        inversion H; subst; auto.
+      - unfold Included, Ensembles.In.
+        clear.
+        intros h [? _].
+        simpl.
+        rewrite raw_sdomains_iff; eauto.
+      - rewrite H_sc.
+        symmetry; apply (limit_domain_same_covered _ 0).
+      - apply FullStreamEnd_preserve.
+  } Unfocus.
+Qed.
 
 Lemma raw_sstate_inf_consist: forall m r h s,
   is_inf_history h ->

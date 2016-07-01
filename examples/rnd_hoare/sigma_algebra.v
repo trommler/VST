@@ -65,6 +65,21 @@ Proof.
   apply complement_measurable, union_measurable; apply complement_measurable; auto.
 Qed.
 
+Lemma const_measurable {Omega: Type} {sa: SigmaAlgebra Omega}: forall P: Prop, is_measurable_set (fun _ => P).
+Proof.
+  intros.
+  destruct (classic P).
+  + eapply is_measurable_set_proper; [| apply complement_measurable, empty_measurable].
+    rewrite Same_set_spec; intro a.
+    unfold Complement, Ensembles.In.
+    rewrite Empty_set_spec.
+    tauto.
+  + eapply is_measurable_set_proper; [| apply empty_measurable].
+    rewrite Same_set_spec; intro a.
+    rewrite Empty_set_spec.
+    tauto.
+Qed.
+
 Definition measurable_set (Omega: Type) {sa: SigmaAlgebra Omega}: Type := {x: Ensemble Omega | is_measurable_set x}.
 
 Definition MSet_Ensemble {Omega: Type} {sa: SigmaAlgebra Omega} (P: measurable_set Omega): Ensemble Omega := proj1_sig P.

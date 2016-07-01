@@ -348,6 +348,16 @@ Proof.
   symmetry; exact (Empty_set_spec _).
 Qed.
 
+Lemma intersection_const_measurable: forall (Omega: measurable_subspace) (P: Prop) Q, is_measurable_set Q Omega -> is_measurable_set (Intersection _ (fun h => P) Q) Omega.
+Proof.
+  intros.
+  destruct (classic P).
+  + eapply is_measurable_set_proper; [| reflexivity | eassumption].
+    rewrite Same_set_spec; intros h. rewrite Ensembles_ext.Intersection_spec; tauto.
+  + eapply is_measurable_set_proper; [| reflexivity | apply empty_measurable].
+    rewrite Same_set_spec; intros h. rewrite Ensembles_ext.Intersection_spec; tauto.
+Qed.
+
 Lemma Compose_spec: forall {Omega: measurable_subspace} {B C: Type} {SB: SigmaAlgebra B} {SC: SigmaAlgebra C} (g: measurable_function.MeasurableFunction B C) (f: MeasurableFunction Omega B) x c, Compose g f x c <-> exists b, f x b /\ g b c.
 Proof.
   intros.
