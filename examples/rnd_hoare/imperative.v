@@ -140,13 +140,41 @@ Global Identity Coercion global_state_ProgState: global_state >-> ProgState.
 Definition command_oaccess (c: cmd) {O1 O2: RandomVarDomain} (src: global_state O1) (dst: global_state O2): Prop :=
   omega_access (ProgState_pair_left c src) (ProgState_pair_left Sskip dst).
 
+Lemma oaccess_same_covered: forall (c: cmd) {O1 O2: RandomVarDomain} (src: global_state O1) (dst: global_state O2),
+  command_oaccess c src dst ->
+  same_covered_anti_chain O1 O2.
+Proof.
+  intros.
+  hnf in H.
+  destruct H as [l [? ?]].
+  apply global_equiv_domain_equal in H.
+  apply global_equiv_domain_equal in H0.
+  clear src dst.
+  subst O1 O2.
+  apply limit_domain_same_covered.
+Qed.
+
+Lemma oaccess_forward: forall (c: cmd) {O1 O2: RandomVarDomain} (src: global_state O1) (dst: global_state O2),
+  command_oaccess c src dst ->
+  future_anti_chain O1 O2.
+Proof.
+  intros.
+  hnf in H.
+  destruct H as [l [? ?]].
+  apply global_equiv_domain_equal in H.
+  apply global_equiv_domain_equal in H0.
+  clear src dst.
+  subst O1 O2.
+  apply limit_domain_forward.
+Qed.
+
 Import PlainAssertion.
 Local Open Scope logic.
 
 Definition triple (Gamma: list Type) {sG: SigmaAlgebras Gamma} (P: assertion (MetaState state) Gamma) (c: cmd) (Q: assertion (MetaState state) Gamma): Prop :=
-  forall o1 (s1: global_state o1) (gamma1: _RVProdType o1 Gamma), (raw_state _ _ s1, gamma1) |== P ->
-    forall o2 (s2: global_state o2) (gamma2: _RVProdType o2 Gamma), command_oaccess c s1 s2 ->
-      (raw_state _ _ s2, gamma2) |== Q.
+  forall o1 (s1: global_state o1) (gamma: _RVProdType o1 Gamma), (raw_state _ _ s1, gamma) |== P ->
+    forall o2 (s2: global_state o2) (H: command_oaccess c s1 s2),
+      (post_prod (oaccess_forward _ _ _ H) (oaccess_same_covered _ _ _ H) (raw_state _ _ s2) (raw_state _ _ s1, gamma)) |== Q.
 
 (*
 Definition filter_global_state {imp: Imperative} {sss: SmallStepSemantics} (filter: RandomHistory -> Prop) (s: global_state): global_state.

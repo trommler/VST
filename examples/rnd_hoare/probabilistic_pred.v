@@ -42,6 +42,7 @@ Fixpoint _RVProdType (Omega: RandomVarDomain) (As: list Type): forall {sAs: Sigm
 
 Definition RVProdType (Omega: RandomVarDomain) (A0: Type) {sA0: SigmaAlgebra A0} (As: list Type) {sAs: SigmaAlgebras As}: Type := (RandomVariable Omega A0 * _RVProdType Omega As)%type.
 
+(*
 Fixpoint _RVProdMetaType {Omega: RandomVarDomain} {A0: Type} {sA0: SigmaAlgebra A0} (a0: ProgState Omega A0) (As: list Type): forall {sAs: SigmaAlgebras As}, Type :=
   match As as As_PAT return SigmaAlgebras As_PAT -> Type with
   | nil => fun _ => unit
@@ -64,7 +65,19 @@ Definition _post_prod {Omega Omega': RandomVarDomain} {A0: Type} {sA0: SigmaAlge
     end.
 
 Definition post_prod {Omega Omega': RandomVarDomain} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As} (rho: RVProdMetaType Omega A0 As) (a0': ProgState Omega' A0) (Hf: future_anti_chain Omega Omega') (Hs: same_covered_anti_chain Omega Omega') (Hts: TerminatingShrink (projT1 rho) a0') : RVProdMetaType Omega' A0 As := existT _ a0' (_post_prod (projT1 rho) a0' Hf Hs Hts (projT2 rho)).
+*)
 
+Definition _post_prod {Omega Omega': RandomVarDomain} (Hf: future_anti_chain Omega Omega') (Hs: same_covered_anti_chain Omega Omega') : forall {As: list Type} {sAs: SigmaAlgebras As} (rho: _RVProdType Omega As), _RVProdType Omega' As :=
+  fix PPV As: forall (sAs: SigmaAlgebras As) (rho: _RVProdType Omega As), _RVProdType Omega' As :=
+    match As as As_PAT
+      return forall (sAs: SigmaAlgebras As_PAT) (rho: _RVProdType Omega As_PAT), _RVProdType Omega' As_PAT
+    with
+    | nil => fun _ _ => tt
+    | A :: As0 => fun sAs rho => (PPV As0 (tail_SigmaAlgebra A As0) (fst rho), post_dom_var _ _ Hf Hs (snd rho))
+    end.
+
+Definition post_prod {Omega Omega': RandomVarDomain} (Hf: future_anti_chain Omega Omega') (Hs: same_covered_anti_chain Omega Omega') {A0: Type} {sA0: SigmaAlgebra A0} (a': RandomVariable Omega' A0) {As: list Type} {sAs: SigmaAlgebras As} (rho: RVProdType Omega A0 As): RVProdType Omega' A0 As :=
+  (a', _post_prod Hf Hs (snd rho)).
 End PredicatesType.
 
 Module Type ASSERTION.
