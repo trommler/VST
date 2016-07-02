@@ -8,26 +8,25 @@ Local Open Scope R.
 
 Class SigmaAlgebraFamily (Omega: Type): Type := {
   is_measurable_subspace: (Ensemble Omega) -> Prop;
+  measurable_subspace: Type := {P: Ensemble Omega | is_measurable_subspace P};
   is_measurable_subspace_proper: Proper (Same_set ==> iff) is_measurable_subspace;
-  sub_sigma_algebra: forall (P: Ensemble Omega | is_measurable_subspace P), SigmaAlgebra {o: Omega | proj1_sig P o};
-  is_measurable_subspace_consi: forall (P: Ensemble Omega | is_measurable_subspace P) (Q: Ensemble Omega | is_measurable_subspace Q), Included (proj1_sig Q) (proj1_sig P) -> @is_measurable_set {x: Omega | proj1_sig P x} (sub_sigma_algebra P) (sig_Set (proj1_sig Q) (proj1_sig P))
+  sub_sigma_algebra: forall P: measurable_subspace, SigmaAlgebra {o: Omega | proj1_sig P o};
+  is_measurable_subspace_consi: forall P Q: measurable_subspace, Included (proj1_sig Q) (proj1_sig P) -> @is_measurable_set {x: Omega | proj1_sig P x} (sub_sigma_algebra P) (sig_Set (proj1_sig Q) (proj1_sig P))
 }.
 
 Class ProbabilityMeasureFamily (Omega: Type) {SigFamily : SigmaAlgebraFamily Omega}: Type := {
-  sub_measure: forall (P: Ensemble Omega | is_measurable_subspace P), @ProbabilityMeasure {o: Omega | proj1_sig P o} (sub_sigma_algebra P)
+  sub_measure: forall P: measurable_subspace, @ProbabilityMeasure {o: Omega | proj1_sig P o} (sub_sigma_algebra P)
 }.
+
+Definition measurable_subspace_Ensemble {U} {SigF: SigmaAlgebraFamily U}: measurable_subspace -> Ensemble U := @proj1_sig _ _.
+
+Global Coercion measurable_subspace_Ensemble: measurable_subspace >-> Ensemble.
 
 Module PrFamily.
 
 Section ProbabilityMeasureFamily.
 
 Context {U: Type} {SigF: SigmaAlgebraFamily U}.
-
-Definition measurable_subspace: Type := {Omega: Ensemble U | is_measurable_subspace Omega}.
-
-Definition measurable_subspace_Ensemble: measurable_subspace -> Ensemble U := @proj1_sig _ _.
-
-Global Coercion measurable_subspace_Ensemble: measurable_subspace >-> Ensemble.
 
 Definition is_measurable_set (P: Ensemble U) (Omega: measurable_subspace): Prop := Included P Omega /\ @is_measurable_set {x: U | Omega x} (sub_sigma_algebra Omega) (sig_Set P Omega).
 
@@ -373,23 +372,31 @@ Proof.
     exists x0; auto.
 Qed.
 
-
 Context {PrF: ProbabilityMeasureFamily U}.
 
 Definition Probability {Omega: measurable_subspace} (P: measurable_set Omega): R := Probability (sub_measure Omega) (measurable_set_inj P).
 
 Definition Expectation {Omega: measurable_subspace} (f: MeasurableFunction Omega R): R := Expectation (sub_measure Omega) (MeasurableFunction_inj f).
 
+Definition GeneratedProbabilityMeasure {Omega: measurable_subspace} {A: Type} {sA: SigmaAlgebra A} (f: MeasurableFunction Omega A): ProbabilityMeasure A := GeneratedProbabilityMeasure (MeasurableFunction_inj f) (sub_measure Omega).
+
 End ProbabilityMeasureFamily.
 
 End PrFamily.
 
 Global Coercion PrFamily.MeasurableFunction_raw_function: PrFamily.MeasurableFunction >-> Funclass.
+Global Coercion PrFamily.measurable_set_Ensemble: PrFamily.measurable_set >-> Ensemble.
 
-Class IsDisintegration {OMEGA} {SigF: SigmaAlgebraFamily OMEGA} {PrF: ProbabilityMeasureFamily OMEGA} (Omega: Ensemble OMEGA | is_measurable_subspace Omega) {A: Type} {SA: SigmaAlgebra A} (pi: MeasurableFunction {o: OMEGA | proj1_sig Omega o} A) (A1: measurable_set A): Type := {
-  defined_almost_everywhere: GeneratedProbabilityMeasure pi (sub_measure Omega) A1 = 1;
-  defined_MSS: forall a, A1 a -> is_measurable_subspace (unsig_Set (fun o => pi o a));
-  defined_MS: forall a (def: A1 a) (E: @measurable_set {o: OMEGA | proj1_sig Omega o} (@sub_sigma_algebra OMEGA SigF Omega)), @is_measurable_set _ (sub_sigma_algebra (exist _ _ (defined_MSS a def))) (sig_Set (unsig_Set E) (unsig_Set (fun o => pi o a)))
+Class IsDisintegration {OMEGA} {SigF: SigmaAlgebraFamily OMEGA} {PrF: ProbabilityMeasureFamily OMEGA} (Omega: measurable_subspace) {A: Type} {SA: SigmaAlgebra A} (pi: PrFamily.MeasurableFunction Omega A) (E: PrFamily.measurable_set Omega) (A': measurable_set A): Type := {
+  defined_almost_everywhere: Probability (PrFamily.GeneratedProbabilityMeasure pi) A' = 1;
+  defined_MSS: forall a, A' a -> is_measurable_subspace (Intersection _ Omega (fun o => pi o a));
+  proj_MSS := fun a def => exist is_measurable_subspace _ (defined_MSS a def) : measurable_subspace;
+  defined_MS: forall a def, PrFamily.is_measurable_set (Intersection _ E (fun o => pi o a)) (proj_MSS a def);
+  proj_MS := fun a def => exist (fun P => PrFamily.is_measurable_set P (proj_MSS a def)) _ (defined_MS a def): PrFamily.measurable_set (proj_MSS a def);
+  defined_MF: exists (f: MeasurableFunction A R), (forall a (def: A' a), f a (PrFamily.Probability (proj_MS a def))) /\ Expectation (PrFamily.GeneratedProbabilityMeasure pi) f = PrFamily.Probability E
 }.
 
+Class ConsistentProbabilityMeasureFamily (OMEGA: Type) {SigF : SigmaAlgebraFamily OMEGA} {PrF: ProbabilityMeasureFamily OMEGA}: Type := {
+  consi_disint: forall {Omega: measurable_subspace} {A: Type} {SA: SigmaAlgebra A} (pi: PrFamily.MeasurableFunction Omega A) (E: PrFamily.measurable_set Omega), exists A', IsDisintegration Omega pi E A'
+}.
 

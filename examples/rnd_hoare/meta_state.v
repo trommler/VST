@@ -13,6 +13,9 @@ Inductive MetaState (state: Type): Type :=
   | NonTerminating: MetaState state
   | Terminating: state -> MetaState state.
 
+Definition is_Terminating {state: Type}: Ensemble (MetaState state) :=
+  fun s => match s with | Terminating _ => True | _ => False end.
+
 Instance MetaState_SigmaAlgebra (state: Type) {state_sig: SigmaAlgebra state}: SigmaAlgebra (MetaState state).
   apply (Build_SigmaAlgebra _ (fun P => is_measurable_set (fun s => P (Terminating _ s)))).
   + hnf; intros; simpl.
@@ -30,6 +33,42 @@ Instance MetaState_SigmaAlgebra (state: Type) {state_sig: SigmaAlgebra state}: S
     apply countable_union_measurable.
     auto.
 Defined.
+
+Lemma NonTerminating_measurable: forall {A} {sA: SigmaAlgebra A}, is_measurable_set (eq (NonTerminating A)).
+Proof.
+  intros.
+  simpl.
+  eapply is_measurable_set_proper; [| apply empty_measurable].
+  rewrite Same_set_spec; intros x.
+  rewrite Empty_set_spec; simpl.
+  split; [intros; congruence | intros []].
+Qed.
+
+Lemma Error_measurable: forall {A} {sA: SigmaAlgebra A}, is_measurable_set (eq (Error A)).
+Proof.
+  intros.
+  simpl.
+  eapply is_measurable_set_proper; [| apply empty_measurable].
+  rewrite Same_set_spec; intros x.
+  rewrite Empty_set_spec; simpl.
+  split; [intros; congruence | intros []].
+Qed.
+
+Lemma is_Terminating_measurable: forall {A} {sA: SigmaAlgebra A}, is_measurable_set (@is_Terminating A).
+Proof.
+  intros.
+  simpl.
+  eapply is_measurable_set_proper; [| apply full_measurable].
+  rewrite Same_set_spec; intros x.
+  rewrite Full_set_spec; simpl.
+  tauto.
+Qed.
+
+Definition NonTerminating_MSet {A} {sA: SigmaAlgebra A}: measurable_set (MetaState A) := exist _ _ NonTerminating_measurable.
+
+Definition Error_MSet {A} {sA: SigmaAlgebra A}: measurable_set (MetaState A) := exist _ _ Error_measurable.
+
+Definition is_Terminating_MSet {A} {sA: SigmaAlgebra A}: measurable_set (MetaState A) := exist _ _ is_Terminating_measurable.
 
 Inductive raw_MetaState_pair_left (cmd state: Type) (c: cmd): MetaState state -> MetaState (cmd * state) -> Prop :=
   | Error_pair_left: raw_MetaState_pair_left cmd state c (Error _) (Error _)
@@ -122,192 +161,204 @@ Defined.
 Definition Terminating_raw_domain {Omega: RandomVarDomain} {state: Type} {state_sigma: SigmaAlgebra state} (s: ProgState Omega state): MeasurableSubset Omega :=
   PrFamily.PreImage_MSet s (meta_state_measurable_set (Full_MSet _) False False).
 
-End ProgState.
+Definition Terminating_equiv {Omega: RandomVarDomain} {state state': Type} {state_sigma: SigmaAlgebra state}  {state_sigma': SigmaAlgebra state'} (ps: ProgState Omega state) (ps': ProgState Omega state'): Prop :=
+  forall h s s', ps h s -> ps' h s' -> (s = NonTerminating _ <-> s' = NonTerminating _) /\ (s = Error _ <-> s' = Error _).
 
+Definition TerminatingShrink {O1 O2: RandomVarDomain} {A: Type} {SA: SigmaAlgebra A} (s1: ProgState O1 A) (s2: ProgState O2 A) : Prop := future_anti_chain (filter_anti_chain (fun h => forall s, s1 h s -> is_Terminating s) O1) (filter_anti_chain (fun h => forall s, s2 h s -> is_Terminating s) O2).
 
-(*
-Section CutLimit.
-
-Context {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {state: Type} {state_sigma: SigmaAlgebra state}.
-
-Variable (filter: measurable_set (MetaState state)).
-
-Variables (Omegas: RandomVarDomainStream) (l: ProgStateStream Omegas state) (dir: ConvergeDir l).
-
-Fixpoint left_raw_dir (n: nat): MeasurableSubset (Omegas n) :=
-  match n as n_PAT return MeasurableSubset (Omegas n_PAT) with
-  | 0 => PrFamily.Intersection_MSet (dir 0) (PrFamily.PreImage_MSet (l 0) filter)
-  | S n0 => PrFamily.Intersection_MSet
-              (MeasurableSubset_stream_proj Omegas n0 (left_raw_dir n0))
-              (PrFamily.Intersection_MSet (dir (S n0)) (PrFamily.PreImage_MSet (l (S n0)) filter))
+Definition post_dom_meta_state {state A: Type} (sample: MetaState state) (origin: MetaState A): MetaState A :=
+  match sample with
+  | NonTerminating => NonTerminating _ 
+  | Error => Error _
+  | _ => origin
   end.
 
-Fixpoint left_raw_domain (n: nat): HistoryAntiChain :=
-  match n with
-  | 0 => Omegas 0
-  | S n0 => subst_anti_chain (left_raw_dir n0) (left_raw_domain n0) (Omegas n)
-  end.
+Definition post_dom_var (O1 O2: RandomVarDomain) (Hf: future_anti_chain O1 O2) (Hs: same_covered_anti_chain O1 O2) {state A: Type} {state_sigma: SigmaAlgebra state} {SA: SigmaAlgebra A} (sample: RandomVariable O2 (MetaState state)): RandomVariable O1 (MetaState A) -> RandomVariable O2 (MetaState A).
+  refine (fun f => PrFamily.Build_MeasurableFunction _ _ _
+    (fun h a => exists h' a' s, prefix_history h' h /\ f h' a' /\ sample h s /\ post_dom_meta_state s a' = a) _ _ _ _).
+  + intros h ? ? [h' [a' [s' [? [? [? ?]]]]]] [h'' [a'' [s'' [? [? [? ?]]]]]].
+    pose proof PrFamily.rf_sound _ _ f _ _ H0.
+    pose proof PrFamily.rf_sound _ _ f _ _ H4.
+    pose proof anti_chain_not_comparable' O1 _ _ H7 H8 (prefix_history_comparable _ _ _ H H3).
+    subst h''.
+    pose proof PrFamily.rf_partial_functionality _ _ f _ _ _ H0 H4.
+    pose proof PrFamily.rf_partial_functionality _ _ sample _ _ _ H1 H5.
+    subst a'' s''.
+    congruence.
+  + intros h ?.
+    destruct (Hf h H) as [h' [? ?]].
+    destruct (PrFamily.rf_complete _ _ f _ H1) as [b ?].
+    destruct (PrFamily.rf_complete _ _ sample _ H) as [s ?].
+    exists (post_dom_meta_state s b), h', b, s; auto.
+  + intros h ? [h' [a' [s' [? [? [? ?]]]]]].
+    eapply (PrFamily.rf_sound _ _ sample); eauto.
+  + intros.
+    eapply PrFamily.is_measurable_set_proper; [| reflexivity |].
+    - instantiate (1 := Union _ (Union _
+           (Intersection _
+             (fun _ => P (NonTerminating _))
+             (fun h => O2 h /\ (forall b, sample h b -> NonTerminating _ = b)))
+           (Intersection _
+             (fun _ => P (Error _))
+             (fun h => O2 h /\ (forall b, sample h b -> Error _ = b))))
+           (Intersection _
+             (fun h => O2 h /\ (forall b, sample h b -> is_Terminating b))
+             (filter_anti_chain (fun h => covered_by h (filter_anti_chain (fun h => forall b, f h b -> P b) O1)) O2))).
+      rewrite Same_set_spec; intro h; simpl.
+      rewrite !Union_spec, !Intersection_spec.
+      split.
+      Focus 1. {
+        intros [? ?].
+        destruct (classic (P (NonTerminating A) /\ sample h (NonTerminating _)));
+        [left; left | destruct (classic (P (Error A) /\ sample h (Error _))); [left; right | right]].
+        + destruct H1.
+          pose proof PrFamily.rf_sound _ _ sample _ _ H2.
+          split; [| split]; auto.
+          intros.
+          exact (PrFamily.rf_partial_functionality _ _ sample _ _ _ H2 H4).
+        + destruct H2.
+          pose proof PrFamily.rf_sound _ _ sample _ _ H3.
+          split; [| split]; auto.
+          intros.
+          exact (PrFamily.rf_partial_functionality _ _ sample _ _ _ H3 H5).
+        + assert (forall b, sample h b -> is_Terminating b).
+          - intros.
+            destruct (Hf _ H) as [h' [? ?]].
+            pose proof PrFamily.rf_complete _ _ f _ H5 as [a ?].
+            assert (NonTerminating _ <> b /\ Error _ <> b) as HH;
+             [| destruct b; simpl; destruct HH; auto; congruence].
+            split; intro; subst b; [apply H1 | apply H2]; clear H1 H2;
+            split; auto; apply H0; exists h', a; eauto.
+          - split; [split |]; auto.
+            destruct (Hf _ H) as [h' [? ?]].
+            split; auto.
+            exists h'; split; auto.
+            split; auto.
+            intros a ?; specialize (H0 a).
+            apply H0.
+            exists h', a.
+            destruct (PrFamily.rf_complete _ _ sample _ H) as [b ?].
+            specialize (H3 _ H7).
+            exists b; split; [| split; [| split]]; auto.
+            destruct b; auto; inversion H3.
+      } Unfocus.
+      Focus 1. {
+        intros [[? | ?] | ?].
+        + destruct H as [? [? ?]].
+          split; auto; intros.
+          destruct H2 as [_ [a [s [_ [_ [? ?]]]]]].
+          apply H1 in H2; subst; auto.
+        + destruct H as [? [? ?]].
+          split; auto; intros.
+          destruct H2 as [_ [a [s [_ [_ [? ?]]]]]].
+          apply H1 in H2; subst; auto.
+        + destruct H as [[? ?] [_ [h' [? [? ?]]]]].
+          split; auto.
+          intros b [h'' [a' [s [? [? [? ?]]]]]].
+          specialize (H0 _ H6).
+          assert (a' = b) by (destruct s; inversion H0; auto); subst a'.
+          pose proof PrFamily.rf_sound _ _ f _ _ H5.
+          pose proof anti_chain_not_comparable' O1 _ _ H2 H8 (prefix_history_comparable _ _ _ H1 H4).
+          subst h''; auto.
+      } Unfocus.
+    - apply PrFamily.union_measurable; [apply PrFamily.union_measurable |];
+      [ apply PrFamily.intersection_const_measurable
+      | apply PrFamily.intersection_const_measurable
+      | apply PrFamily.intersection_measurable;
+        [| apply (is_measurable_set_same_covered O1 O2
+                  (filter_anti_chain (fun h0 => forall b, f h0 b -> P b) O1))]].
+      * apply (PrFamily.rf_preserve _ _ sample NonTerminating_MSet).
+      * apply (PrFamily.rf_preserve _ _ sample Error_MSet).
+      * apply (PrFamily.rf_preserve _ _ sample is_Terminating_MSet).
+      * intros ? [? ?]; auto.
+      * intros ? [? ?]; auto.
+      * auto.
+      * apply same_covered_future_anti_chain_subset1 with O1; auto.
+        intros ? [? ?]; auto.
+      * apply (PrFamily.rf_preserve _ _ f).
+Defined.
 
-Fixpoint left_raw_state (n: nat): RandomHistory -> MetaState state -> Prop :=
-  match n with
-  | 0 => fun h s => l 0 h s
-  | S n0 => fun h s => 
-              left_raw_state n0 h s /\ ~ left_raw_dir n0 h \/
-              l n h s /\ covered_by h (left_raw_dir n0)
-  end.
-
-Lemma left_raw_dir_in_left_raw_domain: forall n, Included (left_raw_dir n) (left_raw_domain n).
-Proof.
+Definition post_dom_prog_state (O1 O2: RandomVarDomain) (Hf: future_anti_chain O1 O2) (Hs: same_covered_anti_chain O1 O2) {state A: Type} {SA: SigmaAlgebra A} {state_sigma: SigmaAlgebra state} (sample: ProgState O2 state): ProgState O1 A -> ProgState O2 A.
+  refine (fun f => Build_ProgState _ _ _ (post_dom_var O1 O2 Hf Hs sample f) _).
   intros.
-  induction n; unfold Included, Ensembles.In; intros.
-  + apply (MeasurableSubset_in_domain (Omegas 0) _ x H).
-  + Opaque PrFamily.Intersection_MSet MeasurableSubset_HistoryAntiChain. simpl in H. Transparent PrFamily.Intersection_MSet MeasurableSubset_HistoryAntiChain. (* should not need this Opaque-Transparent. *)
-    rewrite !RV.Intersection_spec in H.
-    destruct H as [[? ?] [? ?]].
-    right.
-    split.
-    - eapply MeasurableSubset_in_domain; eauto.
-    - replace (filter_anti_chain (left_raw_dir n) (left_raw_domain n)) with (left_raw_dir n: HistoryAntiChain); auto.
-      anti_chain_extensionality h.
-      simpl.
-      specialize (IHn h). tauto.
-Qed.
+  simpl in H0.
+  destruct H0 as [h' [a' [s [? [? [? ?]]]]]].
+  pose proof inf_history_sound _ _ sample _ _ H H2.
+  subst.
+  auto.
+Defined.
 
-Lemma left_raw_dir_in_Omegas: forall n, Included (left_raw_dir n) (Omegas n).
-Proof.
-  intros n h; eapply MeasurableSubset_in_domain; eauto.
-Qed.
-
-Lemma left_raw_domain_same_covered: forall n, same_covered_anti_chain (left_raw_domain n) (left_raw_domain (S n)).
+Lemma post_dom_prog_state_NonTerminating_spec: forall (O1 O2: RandomVarDomain) (Hf: future_anti_chain O1 O2) (Hs: same_covered_anti_chain O1 O2) {state A: Type} {SA: SigmaAlgebra A} {state_sigma: SigmaAlgebra state} (sample: ProgState O2 state) (s: ProgState O1 A) h a, sample h (NonTerminating _) -> (post_dom_prog_state _ _ Hf Hs sample s h a <-> a = NonTerminating _).
 Proof.
   intros.
   simpl.
-  apply subst_anti_chain_same_covered' with (P' := Omegas n); auto.
-  + apply left_raw_dir_in_left_raw_domain.
-  + apply left_raw_dir_in_Omegas.
-  + apply rdom_same_covered.
-  + apply rdom_forward.
+  pose proof PrFamily.rf_sound _ _ sample _ _ H.
+  destruct (Hf _ H0) as [h' [? ?]].
+  destruct (PrFamily.rf_complete _ _ s _ H2) as [a' ?].
+  split; [intros [h'' [a'' [a''' [? [? [? ?]]]]]]; subst | exists h', a'; eauto].
+  pose proof PrFamily.rf_partial_functionality _ _ sample _ _ _ H H6; subst; auto.
 Qed.
 
-Lemma left_raw_domain_same_covered_with_head: forall n, same_covered_anti_chain (Omegas 0) (left_raw_domain n).
-Proof.
-  intros.
-  induction n.
-  + reflexivity.
-  + transitivity (left_raw_domain n); auto.
-    apply left_raw_domain_same_covered; auto.
-Qed.
-
-Lemma left_raw_domain_forward: forall n, future_anti_chain (left_raw_domain n) (left_raw_domain (S n)).
+Lemma post_dom_prog_state_Error_spec: forall (O1 O2: RandomVarDomain) (Hf: future_anti_chain O1 O2) (Hs: same_covered_anti_chain O1 O2) {state A: Type} {SA: SigmaAlgebra A} {state_sigma: SigmaAlgebra state} (sample: ProgState O2 state) (s: ProgState O1 A) h a, sample h (Error _) -> (post_dom_prog_state _ _ Hf Hs sample s h a <-> a = Error _).
 Proof.
   intros.
   simpl.
-  apply subst_anti_chain_future.
+  pose proof PrFamily.rf_sound _ _ sample _ _ H.
+  destruct (Hf _ H0) as [h' [? ?]].
+  destruct (PrFamily.rf_complete _ _ s _ H2) as [a' ?].
+  split; [intros [h'' [a'' [a''' [? [? [? ?]]]]]]; subst | exists h', a'; eauto].
+  pose proof PrFamily.rf_partial_functionality _ _ sample _ _ _ H H6; subst; auto.
 Qed.
 
-Lemma left_raw_domain_measurable: forall n, is_measurable_subspace (left_raw_domain n).
-Proof.
-  intros.
-  eapply is_measurable_subspace_same_covered.
-  + apply left_raw_domain_same_covered_with_head.
-  + apply (proj2_sig (Omegas 0)).
-Qed.
-
-Lemma left_raw_dir_measurable: forall n, PrFamily.is_measurable_set (left_raw_dir n) (exist _ _ (left_raw_domain_measurable n)).
-Proof.
-  intros.
-  eapply is_measurable_set_same_covered with (O1 := Omegas n) (P1 := left_raw_dir n).
-  + apply left_raw_dir_in_Omegas.
-  + apply left_raw_dir_in_left_raw_domain.
-  + transitivity (Omegas 0).
-    - apply RandomVarDomainStream_same_covered.
-    - apply left_raw_domain_same_covered_with_head.
-  + reflexivity.
-  + apply (proj2_sig (left_raw_dir n)).
-Qed.
-
-Lemma left_raw_dir_forward: forall n, future_anti_chain (left_raw_dir n) (left_raw_dir (S n)).
+Lemma post_dom_prog_state_Terminating_spec: forall (O1 O2: RandomVarDomain) (Hf: future_anti_chain O1 O2) (Hs: same_covered_anti_chain O1 O2) {state A: Type} {SA: SigmaAlgebra A} {state_sigma: SigmaAlgebra state} (sample: ProgState O2 state) (s: ProgState O1 A) h a0 a, sample h a0 -> is_Terminating a0 -> (post_dom_prog_state _ _ Hf Hs sample s h a <-> exists h', prefix_history h' h /\ s h' a).
 Proof.
   intros.
   simpl.
-  apply future_anti_chain_Included with (l1 := left_raw_dir n) (r1 := MeasurableSubset_stream_proj Omegas n (left_raw_dir n)).
-  + apply Included_refl.
-  + unfold Included, Ensembles.In; intros.
-    rewrite RV.Intersection_spec in H.
-    tauto.
-  + hnf; intros.
-    destruct H; auto.
+  split.
+  + intros [h' [a' [a'' [? [? [? ?]]]]]].
+    exists h'; split; auto.
+    pose proof PrFamily.rf_partial_functionality _ _ sample _ _ _ H H3; subst.
+    destruct a''; auto; inversion H0.
+  + intros [h' [? ?]].
+    pose proof PrFamily.rf_sound _ _ sample _ _ H.
+    destruct (Hf _ H3) as [h'' [? ?]].
+    pose proof PrFamily.rf_sound _ _ s _ _ H2.
+    pose proof anti_chain_not_comparable' O1 _ _ H6 H5 (prefix_history_comparable _ _ _ H1 H4).
+    subst h''.
+    exists h', a, a0; split; [| split; [| split]]; auto.
+    destruct a0; auto; inversion H0.
 Qed.
 
-Definition left_domains: RandomVarDomainStream := Build_RandomVarDomainStream (fun n => exist _ _ (left_raw_domain_measurable n)) left_raw_domain_same_covered left_raw_domain_forward.
-
-Lemma left_raw_state_partial_functionality_ind: forall n,
-  (forall h b1 b2, left_raw_state n h b1 -> left_raw_state n h b2 -> b1 = b2) ->
-  (forall h b, left_raw_state n h b -> left_domains n h) ->
-  (forall h b1 b2, left_raw_state (S n) h b1 -> left_raw_state (S n) h b2 -> b1 = b2).
+Lemma post_dom_prog_state_Terminating_equiv: forall (O1 O2: RandomVarDomain) (Hf: future_anti_chain O1 O2) (Hs: same_covered_anti_chain O1 O2) {state A: Type} {SA: SigmaAlgebra A} {state_sigma: SigmaAlgebra state} (s1: ProgState O1 state) (s2: ProgState O2 state) (Hts: TerminatingShrink s1 s2) (a1: ProgState O1 A),
+  Terminating_equiv s1 a1 ->
+  Terminating_equiv s2 (post_dom_prog_state _ _ Hf Hs s2 a1).
 Proof.
-  intros ? H_PF H_S; intros.
-  destruct H as [[? ?] | [? ?]], H0 as [[? ?] | [? ?]].
-  + apply (H_PF h); auto.
-  + exfalso.
-    destruct H2 as [h' [? ?]].
-    pose proof H_S h _ H.
-    pose proof left_raw_dir_in_left_raw_domain n _ H3.
-    pose proof anti_chain_not_comparable _ h' h H5 H4 H2.
-    subst h'; auto.
-  + exfalso.
+  intros.
+  hnf; intros ?h ?x ?x ? ?.
+  destruct x as [| | ?x] eqn:?H; auto.
+  + rewrite post_dom_prog_state_Error_spec in H1 by (subst; auto).
+    split; split; intros; congruence.
+  + rewrite post_dom_prog_state_NonTerminating_spec in H1 by (subst; auto).
+    split; split; intros; congruence.
+  + rewrite post_dom_prog_state_Terminating_spec in H1 by (subst; simpl; eauto).
     destruct H1 as [h' [? ?]].
-    pose proof H_S h _ H0.
-    pose proof left_raw_dir_in_left_raw_domain n _ H3.
-    pose proof anti_chain_not_comparable _ h' h H5 H4 H1.
-    subst h'; auto.
-  + apply (PrFamily.rf_partial_functionality _ _ (l (S n)) h); auto.
+    destruct (Hts h) as [h'' [? [? ?]]]; [split |].
+    - apply (PrFamily.rf_sound _ _ s2) in H0; auto.
+    - intros.
+      pose proof PrFamily.rf_partial_functionality _ _ s2 _ _ _ H0 H4; subst; simpl; auto.
+    - pose proof PrFamily.rf_sound _ _ a1 _ _ H3.
+      pose proof anti_chain_not_comparable' O1 _ _ H7 H5 (prefix_history_comparable _ _ _ H1 H4); subst h''.
+      destruct (PrFamily.rf_complete _ _ s1 _ H5) as [?x ?].
+      specialize (H6 _ H8).
+      specialize (H h' _ _ H8 H3).
+      clear - H H6.
+      destruct H as [[? ?] [? ?]].
+      destruct x2; try inversion H6; split; split; try congruence; intros.
+      * apply H0 in H3; inversion H3.
+      * apply H2 in H3; inversion H3.
 Qed.
 
-Lemma left_raw_state_sound_ind: forall n,
-  (forall h b, left_raw_state n h b -> left_domains n h) ->
-  (forall h b, left_raw_state (S n) h b -> left_domains (S n) h).
-Proof.
-  intros n H_S; intros.
-  destruct H as [[? ?] | [? ?]]; [left | right].
-  + apply H_S in H.
-    auto.
-  + apply (PrFamily.rf_sound _ _ (l (S n))) in H.
-    split; auto.
-    destruct H0 as [h' [? ?]]; exists h'; split; auto.
-    split; auto.
-    apply (left_raw_dir_in_left_raw_domain n); auto.
-Qed.
-
-Lemma left_raw_state_complete_ind: forall n,
-  (forall h, left_domains n h -> exists b, left_raw_state n h b) ->
-  (forall h, left_domains (S n) h -> exists b, left_raw_state (S n) h b).
-Proof.
-  intros n H_COM; intros.
-  destruct H as [[? ?] | [? ?]].
-  + apply H_COM in H.
-    destruct H as [b ?]; exists b; left.
-    auto.
-  + apply (PrFamily.rf_complete _ _ (l (S n))) in H.
-    destruct H as [b ?]; exists b; right.
-    split; auto.
-    destruct H0 as [h' [? [? ?]]]; exists h'; auto.
-Qed.
+End ProgState.
+  
 
 
-(*
-Lemma left_raw_dir_slow: forall n h, left_raw_dir n h \/ RandomVar_local_equiv (l n) (l (S n)) h h
-Proof.
-  intros; simpl in H0.
-  destruct (classic ((left_raw_dir n) h)); tauto.
-Qed.
-*)
-
-(*
-Definition left_dir: ConvergeDir left_domains := Build_ConvergeDir _ (fun n => exist (fun P => PrFamily.is_measurable_set P (left_domains n)) (left_raw_dir n) (left_raw_dir_measurable n)) (left_raw_dir_forward) (left_raw_dir_slow).
-
-Definition right_raw_dir (n: nat): RandomHistory -> Prop :=
-  fun h => exists m, covered_by h (left_raw_dir m) /\ ~ covered_by h (left_raw_dir (S m)) /\ MeasurableSubset_HistoryAntiChain (dir (n + S m)) h.
-*)
-End CutLimit.
-*)

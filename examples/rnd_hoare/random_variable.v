@@ -11,7 +11,7 @@ Require Import RndHoare.regular_conditional_prob.
 
 Class HistoryBasedSigF (ora: RandomOracle) {SFo: SigmaAlgebraFamily RandomHistory} := {
   measurable_subspace_legal: forall P, is_measurable_subspace P -> LegalHistoryAntiChain P;
-  RandomVarDomain := PrFamily.measurable_subspace;
+  RandomVarDomain := measurable_subspace;
   RandomVarDomain_HistoryAntiChain (Omega: RandomVarDomain): HistoryAntiChain := Build_HistoryAntiChain _ (proj1_sig Omega) (measurable_subspace_legal _ (proj2_sig Omega));
   is_measurable_subspace_same_covered: forall P Q: HistoryAntiChain, same_covered_anti_chain P Q -> is_measurable_subspace P -> is_measurable_subspace Q;
   is_measurable_set_same_covered: forall (O1 O2: RandomVarDomain) (P1 P2: HistoryAntiChain), Included P1 (RandomVarDomain_HistoryAntiChain O1) -> Included P2 (RandomVarDomain_HistoryAntiChain O2) -> same_covered_anti_chain (RandomVarDomain_HistoryAntiChain O1) (RandomVarDomain_HistoryAntiChain O2) -> same_covered_anti_chain P1 P2 -> PrFamily.is_measurable_set P1 O1 -> PrFamily.is_measurable_set P2 O2;
@@ -115,47 +115,6 @@ Definition RandomVarMap {Omega: RandomVarDomain} {A B: Type} {SA: SigmaAlgebra A
 Lemma RandomVarMap_sound: forall {Omega: RandomVarDomain} {A B: Type} {SA: SigmaAlgebra A} {SB: SigmaAlgebra B} (f: MeasurableFunction A B) (v: RandomVariable Omega A) h b,
   RandomVarMap f v h b <-> exists a, v h a /\ f a b.
 Proof. intros. apply PrFamily.Compose_spec; auto. Qed.
-
-Definition post_dom_var (O1 O2: RandomVarDomain) (Hf: future_anti_chain O1 O2) (Hs: same_covered_anti_chain O1 O2) {A: Type} {SA: SigmaAlgebra A}: RandomVariable O1 A -> RandomVariable O2 A.
-  refine (fun f => PrFamily.Build_MeasurableFunction _ _ _ (fun h a => O2 h /\ exists h', prefix_history h' h /\ f h' a) _ _ _ _).
-  + intros h ? ? [? [h' [? ?]]] [_ [h'' [? ?]]].
-    pose proof PrFamily.rf_sound _ _ f _ _ H1.
-    pose proof PrFamily.rf_sound _ _ f _ _ H3.
-    pose proof anti_chain_not_comparable' O1 _ _ H4 H5 (prefix_history_comparable _ _ _ H0 H2).
-    subst h''.
-    apply (PrFamily.rf_partial_functionality _ _ f _ _ _ H1 H3).
-  + intros h ?.
-    destruct (Hf h H) as [h' [? ?]].
-    destruct (PrFamily.rf_complete _ _ f _ H1) as [b ?].
-    exists b; split; [| exists h']; auto.
-  + intros h ? [? [h' [? ?]]].
-    auto.
-  + intros.
-    eapply PrFamily.is_measurable_set_proper; [| reflexivity |].
-    - instantiate (1 := filter_anti_chain (fun h => covered_by h (filter_anti_chain (fun h => forall b, f h b -> P b) O1)) O2).
-      rewrite Same_set_spec; intro h; simpl.
-      split.
-      * intros [? ?].
-        split; auto.
-        destruct (Hf _ H) as [h' [? ?]].
-        exists h'; split; auto.
-        split; auto.
-        intros b ?; specialize (H0 b).
-        apply H0; split; eauto.
-      * intros [? [h' [? [? ?]]]].
-        split; auto.
-        intros b [? [h'' [? ?]]]; apply (H2 b); clear H2.
-        pose proof PrFamily.rf_sound _ _ f _ _ H5.
-        pose proof anti_chain_not_comparable' O1 _ _ H1 H2 (prefix_history_comparable _ _ _ H0 H4).
-        subst h''; auto.
-    - apply (is_measurable_set_same_covered O1 O2 (filter_anti_chain (fun h0 => forall b, f h0 b -> P b) O1)).
-      * intros ? [? ?]; auto.
-      * intros ? [? ?]; auto.
-      * auto.
-      * apply same_covered_future_anti_chain_subset1 with O1; auto.
-        intros ? [? ?]; auto.
-      * apply (PrFamily.rf_preserve _ _ f).
-Qed.
 
 Record HeredRandomVariable (A: Type) {SA: SigmaAlgebra A}: Type := {
   well_defined_dom: RandomVarDomain -> Prop;

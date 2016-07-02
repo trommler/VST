@@ -9,6 +9,7 @@ Require Import RndHoare.random_history_order.
 Require Import RndHoare.random_history_conflict.
 Require Import RndHoare.history_anti_chain.
 Require Import RndHoare.random_variable.
+Require Import RndHoare.meta_state.
 
 Section PredicatesType.
 
@@ -41,17 +42,28 @@ Fixpoint _RVProdType (Omega: RandomVarDomain) (As: list Type): forall {sAs: Sigm
 
 Definition RVProdType (Omega: RandomVarDomain) (A0: Type) {sA0: SigmaAlgebra A0} (As: list Type) {sAs: SigmaAlgebras As}: Type := (RandomVariable Omega A0 * _RVProdType Omega As)%type.
 
-Definition _post_prod {Omega Omega': RandomVarDomain} (Hf: future_anti_chain Omega Omega') (Hs: same_covered_anti_chain Omega Omega') : forall {As: list Type} {sAs: SigmaAlgebras As} (rho: _RVProdType Omega As), _RVProdType Omega' As :=
-  fix PPV As: forall (sAs: SigmaAlgebras As) (rho: _RVProdType Omega As), _RVProdType Omega' As :=
+Fixpoint _RVProdMetaType {Omega: RandomVarDomain} {A0: Type} {sA0: SigmaAlgebra A0} (a0: ProgState Omega A0) (As: list Type): forall {sAs: SigmaAlgebras As}, Type :=
+  match As as As_PAT return SigmaAlgebras As_PAT -> Type with
+  | nil => fun _ => unit
+  | cons A As0 => fun sAs => (@_RVProdMetaType Omega _ _ a0 As0 (@tail_SigmaAlgebra _ _ sAs) *
+                              {a: @ProgState _ _ _ Omega A (@head_SigmaAlgebra _ _ sAs) | Terminating_equiv a0 a})%type
+  end.
+
+Definition RVProdMetaType (Omega: RandomVarDomain) (A0: Type) {sA0: SigmaAlgebra A0} (As: list Type) {sAs: SigmaAlgebras As}: Type := sigT (fun a0: ProgState Omega A0 => _RVProdMetaType a0 As).
+
+Definition _post_prod {Omega Omega': RandomVarDomain} {A0: Type} {sA0: SigmaAlgebra A0} (a0: ProgState Omega A0) (a0': ProgState Omega' A0) (Hf: future_anti_chain Omega Omega') (Hs: same_covered_anti_chain Omega Omega') (Hts: TerminatingShrink a0 a0') : forall {As: list Type} {sAs: SigmaAlgebras As} (rho: _RVProdMetaType a0 As), _RVProdMetaType a0' As :=
+  fix PPV As: forall (sAs: SigmaAlgebras As) (rho: _RVProdMetaType a0 As), _RVProdMetaType a0' As :=
     match As as As_PAT
-      return forall (sAs: SigmaAlgebras As_PAT) (rho: _RVProdType Omega As_PAT), _RVProdType Omega' As_PAT
+      return forall (sAs: SigmaAlgebras As_PAT) (rho: _RVProdMetaType a0 As_PAT), _RVProdMetaType a0' As_PAT
     with
     | nil => fun _ _ => tt
-    | A :: As0 => fun sAs rho => (PPV As0 (tail_SigmaAlgebra A As0) (fst rho), post_dom_var _ _ Hf Hs (snd rho))
+    | A :: As0 => fun sAs rho => (PPV As0 (tail_SigmaAlgebra A As0) (fst rho),
+                                  exist _
+                                    (post_dom_prog_state _ _ Hf Hs a0'  (proj1_sig (snd rho)))
+                                    (post_dom_prog_state_Terminating_equiv _ _ Hf Hs a0 a0' Hts (proj1_sig (snd rho)) (proj2_sig (snd rho))))
     end.
 
-Definition post_prod {Omega Omega': RandomVarDomain} (Hf: future_anti_chain Omega Omega') (Hs: same_covered_anti_chain Omega Omega') {A0: Type} {sA0: SigmaAlgebra A0} (a': RandomVariable Omega' A0) {As: list Type} {sAs: SigmaAlgebras As} (rho: RVProdType Omega A0 As): RVProdType Omega' A0 As :=
-  (a', _post_prod Hf Hs (snd rho)).
+Definition post_prod {Omega Omega': RandomVarDomain} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As} (rho: RVProdMetaType Omega A0 As) (a0': ProgState Omega' A0) (Hf: future_anti_chain Omega Omega') (Hs: same_covered_anti_chain Omega Omega') (Hts: TerminatingShrink (projT1 rho) a0') : RVProdMetaType Omega' A0 As := existT _ a0' (_post_prod (projT1 rho) a0' Hf Hs Hts (projT2 rho)).
 
 End PredicatesType.
 
