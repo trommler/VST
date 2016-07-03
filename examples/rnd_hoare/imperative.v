@@ -176,6 +176,12 @@ Definition triple (Gamma: list Type) {sG: SigmaAlgebras Gamma} (P: assertion (Me
     forall o2 (s2: global_state o2) (H: command_oaccess c s1 s2),
       (post_prod (oaccess_forward _ _ _ H) (oaccess_same_covered _ _ _ H) (raw_state _ _ s2) (raw_state _ _ s1, gamma)) |== Q.
 
+Definition partial_triple (Gamma: list Type) {sG: SigmaAlgebras Gamma} (P: assertion state Gamma) (c: cmd) (Q: assertion state Gamma): Prop :=
+  triple Gamma (PartialMetaAssertion P) c (PartialMetaAssertion Q).
+
+Definition total_triple (Gamma: list Type) {sG: SigmaAlgebras Gamma} (P: assertion state Gamma) (c: cmd) (Q: assertion state Gamma): Prop :=
+  triple Gamma (TotalMetaAssertion P) c (TotalMetaAssertion Q).
+
 (*
 Definition filter_global_state {imp: Imperative} {sss: SmallStepSemantics} (filter: RandomHistory -> Prop) (s: global_state): global_state.
   exists (filter_var filter (proj1_sig s)).
