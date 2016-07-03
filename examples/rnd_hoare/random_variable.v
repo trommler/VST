@@ -180,6 +180,9 @@ Definition post_dom_var (O1 O2: RandomVarDomain) (Hf: future_anti_chain O1 O2) (
       * apply (PrFamily.rf_preserve _ _ f).
 Qed.
 
+Definition is_filter_var {Omega Omega': RandomVarDomain} {A: Type} {sA: SigmaAlgebra A} (v: RandomVariable Omega A) (v': RandomVariable Omega' A) :=
+  forall h, Omega' h -> RandomVar_local_equiv v v' h h.
+(*
 Record HeredRandomVariable (A: Type) {SA: SigmaAlgebra A}: Type := {
   well_defined_dom: RandomVarDomain -> Prop;
   well_defined_mono: forall (O1 O2: RandomVarDomain), future_anti_chain O1 O2 -> well_defined_dom O1 -> well_defined_dom O2;
@@ -189,7 +192,7 @@ Record HeredRandomVariable (A: Type) {SA: SigmaAlgebra A}: Type := {
     prefix_history h1 h2 ->
     RandomVar_local_equiv (ex_value O1 H1) (ex_value O2 H2) h1 h2
 }.
-
+*)
 End RandomVariable.
 
 Module RV.

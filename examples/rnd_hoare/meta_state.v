@@ -160,6 +160,9 @@ Defined.
 
 Definition Terminating_raw_domain {Omega: RandomVarDomain} {state: Type} {state_sigma: SigmaAlgebra state} (s: ProgState Omega state): MeasurableSubset Omega :=
   PrFamily.PreImage_MSet s (meta_state_measurable_set (Full_MSet _) False False).
+
+Definition is_Terminating_part {Omega Omega': RandomVarDomain} {A: Type} {sA: SigmaAlgebra A} (v: RandomVariable Omega (MetaState A)) (v': RandomVariable Omega' A) :=
+  forall h, Omega' h -> (forall a, v h (Terminating _ a) <-> v' h a).
 (*
 Definition Terminating_equiv {Omega: RandomVarDomain} {state state': Type} {state_sigma: SigmaAlgebra state}  {state_sigma': SigmaAlgebra state'} (ps: ProgState Omega state) (ps': ProgState Omega state'): Prop :=
   forall h s s', ps h s -> ps' h s' -> (s = NonTerminating _ <-> s' = NonTerminating _) /\ (s = Error _ <-> s' = Error _).

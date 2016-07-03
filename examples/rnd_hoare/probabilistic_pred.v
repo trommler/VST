@@ -78,11 +78,41 @@ Definition _post_prod {Omega Omega': RandomVarDomain} (Hf: future_anti_chain Ome
 
 Definition post_prod {Omega Omega': RandomVarDomain} (Hf: future_anti_chain Omega Omega') (Hs: same_covered_anti_chain Omega Omega') {A0: Type} {sA0: SigmaAlgebra A0} (a': RandomVariable Omega' A0) {As: list Type} {sAs: SigmaAlgebras As} (rho: RVProdType Omega A0 As): RVProdType Omega' A0 As :=
   (a', _post_prod Hf Hs (snd rho)).
+
+Definition _is_filter_prod {Omega Omega': RandomVarDomain}: forall {As: list Type} {sAs: SigmaAlgebras As} (rho: _RVProdType Omega As) (rho': _RVProdType Omega' As), Prop :=
+  fix IFP (As: list Type): forall (sAs: SigmaAlgebras As) (rho: _RVProdType Omega As) (rho': _RVProdType Omega' As), Prop :=
+    match As as As_PAT
+      return forall (sAs: SigmaAlgebras As_PAT) (rho: _RVProdType Omega As_PAT) (rho': _RVProdType Omega' As_PAT), Prop
+    with
+    | nil => fun _ _ _ => True
+    | A :: As0 => fun sAs rho rho' => IFP As0 (tail_SigmaAlgebra A As0) (fst rho) (fst rho') /\ is_filter_var (snd rho) (snd rho')
+    end.
+
+Definition is_conditional_prod {Omega Omega': RandomVarDomain} (A: Ensemble RandomHistory) {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As} (rho: RVProdType Omega A0 As) (rho': RVProdType Omega' A0 As): Prop := Same_set Omega' (Intersection _ Omega A) /\ is_filter_var (fst rho) (fst rho') /\ _is_filter_prod (snd rho) (snd rho').
+
+Definition is_Terminating_prod {Omega Omega': RandomVarDomain} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As} (rho: RVProdType Omega (MetaState A0) As) (rho': RVProdType Omega' A0 As): Prop := Same_set Omega' (Intersection _ Omega (fun h => forall a, fst rho h a -> is_Terminating a)) /\ is_Terminating_part (fst rho) (fst rho') /\ _is_filter_prod (snd rho) (snd rho').
+
 End PredicatesType.
 
 Module Type ASSERTION.
 
+Parameter random_value: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} (A0: Type) {sA0: SigmaAlgebra A0} (As: list Type) {sAs: SigmaAlgebras As} (t: Type) {sT: SigmaAlgebra t}, Type.
+
+Parameter local_eval: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As} {t: Type} {sT: SigmaAlgebra t} {Omega: RandomVarDomain} (rho: RVProdType Omega A0 As) (h: RandomHistory) (X: random_value A0 As t), t.
+
+Parameter event: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} (A0: Type) {sA0: SigmaAlgebra A0} (As: list Type) {sAs: SigmaAlgebras As}, Type.
+
+Parameter rv_event: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As} {t: Type} {sT: SigmaAlgebra t} (T': measurable_set t) (X: random_value A0 As t), event A0 As.
+
+Parameter local_satisfy: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As} {Omega: RandomVarDomain} (rho: RVProdType Omega A0 As) (h: RandomHistory) (A: event A0 As), Prop.
+
+Parameter value: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} (A0: Type) {sA0: SigmaAlgebra A0} (As: list Type) {sAs: SigmaAlgebras As} (t: Type), Type.
+
+Parameter eval: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As} {t: Type} {Omega: RandomVarDomain} (rho: RVProdType Omega A0 As) (e: value A0 As t), t.
+
 Parameter assertion: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} (A0: Type) {sA0: SigmaAlgebra A0} (As: list Type) {sAs: SigmaAlgebras As}, Type.
+
+Parameter satisfy: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As} {Omega: RandomVarDomain} (rho: RVProdType Omega A0 As) (P: assertion A0 As), Prop.
 
 Parameter andp: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As} (P Q: assertion A0 As), assertion A0 As.
 
@@ -90,11 +120,15 @@ Parameter orp: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory
 
 Parameter imp: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As} (P Q: assertion A0 As), assertion A0 As.
 
+Parameter allp: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As} (B: Type) (P: B -> assertion A0 As), assertion A0 As.
+
 Parameter exp: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As} (B: Type) (P: B -> assertion A0 As), assertion A0 As.
 
 Parameter expR: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As} (B: Type) {sB: SigmaAlgebra B} (P: assertion A0 (B :: As)), assertion A0 As.
 
-Parameter satisfy: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As} {Omega: RandomVarDomain} (rho: RVProdType Omega A0 As) (P: assertion A0 As), Prop.
+Parameter conditional: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As} (P: assertion A0 As) (A: event A0 As), assertion A0 As.
+
+Definition rv_conditional {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As} {t: Type} {sT: SigmaAlgebra t} (P: assertion A0 As) (X: random_value A0 As t): assertion A0 As := allp _ (fun T': measurable_set t => conditional P (rv_event T' X)).
 
 Definition valid {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} (As: list Type) {sAs: SigmaAlgebras As} (P: assertion A0 As): Prop := forall Omega (rho: RVProdType Omega A0 As), satisfy rho P.
 
@@ -108,6 +142,8 @@ Section ASSERTION.
 
 Context {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As}.
 
+Axiom rv_event_spec: forall {t: Type} {sT: SigmaAlgebra t} {Omega} (rho: RVProdType Omega A0 As) (h: RandomHistory) (T': measurable_set t) (X: random_value A0 As t), local_satisfy rho h (rv_event T' X) <-> T' (local_eval rho h X).
+
 Axiom andp_spec: forall {Omega} (rho: RVProdType Omega A0 As) (P Q: assertion A0 As), rho |== P && Q <-> rho |== P /\ rho |== Q.
 
 Axiom orp_spec: forall {Omega} (rho: RVProdType Omega A0 As) (P Q: assertion A0 As), rho |== P || Q <-> rho |== P \/ rho |== Q.
@@ -117,6 +153,8 @@ Axiom imp_spec: forall {Omega} (rho: RVProdType Omega A0 As) (P Q: assertion A0 
 Axiom exp_spec: forall {Omega} (U: Type) (rho: RVProdType Omega A0 As) (P: U -> assertion A0 As), rho |== exp U P <-> exists u, rho |== P u.
 
 Axiom expR_spec: forall {Omega} (U: Type) {sU: SigmaAlgebra U} (a: RandomVariable Omega A0) (gamma: _RVProdType Omega As) (P: assertion A0 (U :: As)), (a, gamma) |== expR U P <-> exists u, ((a, (gamma, u)): RVProdType _ A0 (U :: As)) |== P.
+
+Axiom conditional_spec: forall {Omega} (rho: RVProdType Omega A0 As) (P: assertion A0 As) (A: event A0 As), rho |== conditional P A <-> (forall Omega' (rho': RVProdType Omega' A0 As), is_conditional_prod (fun h => local_satisfy rho h A) rho rho' -> rho' |== P).
 
 End ASSERTION.
 
