@@ -34,7 +34,7 @@ Class SmallStepSemantics {imp: Imperative} : Type := {
   ora: RandomOracle;
   SFo: SigmaAlgebraFamily RandomHistory;
   HBSFo: HistoryBasedSigF ora;
-  eval_bool: state -> expr -> option bool;
+  eval_bool: expr -> @MeasurableFunction state bool _ (max_sigma_alg _);
   atomic_step: forall c: acmd, state -> forall {Omega: RandomVarDomain}, ProgState Omega state -> Prop
 }.
 
@@ -43,10 +43,10 @@ Existing Instances state_sig cmd_state_sig ora SFo HBSFo.
 Inductive step {imp: Imperative} {sss: SmallStepSemantics}: cmd * state -> forall {Omega: RandomVarDomain}, ProgState Omega (cmd * state)%type -> Prop :=
   | step_atomic: forall (ac: acmd) (s: state) (Omega: RandomVarDomain) (cs: ProgState Omega state),
       atomic_step ac s cs -> step (Satomic ac, s) (ProgState_pair_left Sskip cs)
-  | step_if_true: forall e c1 c2 s, eval_bool s e = Some true -> step (Sifthenelse e c1 c2, s) (non_branch_tstate (c1, s))
-  | step_if_false: forall e c1 c2 s, eval_bool s e = Some false -> step (Sifthenelse e c1 c2, s) (non_branch_tstate (c2, s))
-  | step_while_true: forall e c s, eval_bool s e = Some true -> step (Swhile e c, s) (non_branch_tstate (Ssequence c (Swhile e c), s))
-  | step_while_false: forall e c s, eval_bool s e = Some false -> step (Swhile e c, s) (non_branch_tstate (Sskip, s))
+  | step_if_true: forall e c1 c2 s, eval_bool e s true -> step (Sifthenelse e c1 c2, s) (non_branch_tstate (c1, s))
+  | step_if_false: forall e c1 c2 s, eval_bool e s false -> step (Sifthenelse e c1 c2, s) (non_branch_tstate (c2, s))
+  | step_while_true: forall e c s, eval_bool e s true -> step (Swhile e c, s) (non_branch_tstate (Ssequence c (Swhile e c), s))
+  | step_while_false: forall e c s, eval_bool e s false -> step (Swhile e c, s) (non_branch_tstate (Sskip, s))
   | step_skip: forall c s, step (Ssequence Sskip c, s) (non_branch_tstate (c, s)).
 
 End Normal.

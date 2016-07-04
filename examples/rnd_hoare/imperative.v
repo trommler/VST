@@ -36,24 +36,24 @@ Definition global_step {imp: Imperative} {sss: SmallStepSemantics} (flag: option
   | None => s1 = s2
   end.
 
-Record step_path {imp: Imperative} {sss: SmallStepSemantics}: Type := {
-  path_states: nat -> MetaState (cmd * state);
+Record execution_trace {imp: Imperative} {sss: SmallStepSemantics}: Type := {
+  trace_states: nat -> MetaState (cmd * state);
   step_domains: nat -> option unit;
-  step_sound: forall n, global_step (step_domains n) (path_states n) (path_states (S n));
+  step_sound: forall n, global_step (step_domains n) (trace_states n) (trace_states (S n));
   domain_mono: forall n, step_domains n = None -> step_domains (S n) = None
 }.
 
-Definition is_limit {imp: Imperative} {sss: SmallStepSemantics} (l: step_path) (lim: MetaState (cmd * state)): Prop :=
+Definition is_limit {imp: Imperative} {sss: SmallStepSemantics} (l: execution_trace) (lim: MetaState (cmd * state)): Prop :=
   forall s,
   lim = s <->
-    (exists n, path_states l n = s /\ step_domains l n = None) \/
+    (exists n, trace_states l n = s /\ step_domains l n = None) \/
     (s = NonTerminating _ /\ forall n, step_domains l n = Some tt).
 
 Definition access {imp: Imperative} {sss: SmallStepSemantics} (src dst: MetaState (cmd * state)): Prop :=
-  exists (l: step_path) (n: nat), path_states l 0 = src /\ path_states l n = dst.
+  exists (l: execution_trace) (n: nat), trace_states l 0 = src /\ trace_states l n = dst.
 
 Definition omega_access {imp: Imperative} {sss: SmallStepSemantics} (src: MetaState (cmd * state)) (dst: MetaState (cmd * state)) : Prop :=
-  exists (l: step_path), path_states l 0 = src /\ is_limit l dst.
+  exists (l: execution_trace), trace_states l 0 = src /\ is_limit l dst.
 
 Definition global_state {imp: Imperative} {sss: SmallStepSemantics} := MetaState state.
 
@@ -109,29 +109,25 @@ Record local_step (h: RandomHistory) {O1 O2: RandomVarDomain} (s1: ProgState O1 
   step_fact: step cs1 cs2
 }.
 
-Record global_step {O1 O2: RandomVarDomain} (P: MeasurableSubset O1) (s1: ProgState O1 (cmd * state)) (s2: ProgState O2 (cmd * state)): Prop := {
-  action_part:
-    forall h, P h -> local_step h s1 s2;
-  stable_part:
-    forall h, ~ covered_by h P -> (forall x, s1 h x <-> s2 h x)
-}.
+Definition global_step {O1 O2: RandomVarDomain} (P: MeasurableSubset O1) (s1: ProgState O1 (cmd * state)) (s2: ProgState O2 (cmd * state)): Prop :=
+  forall h, P h -> local_step h s1 s2.
 
-Record step_path: Type := {
-  path_domain: RandomVarDomainStream;
-  path_states: ProgStateStream path_domain (cmd * state);
-  step_domains: ConvergeDir path_states;
-  step_sound: forall n, global_step (step_domains n) (path_states n) (path_states (S n))
+Record execution_trace: Type := {
+  trace_domain: RandomVarDomainStream;
+  trace_states: ProgStateStream trace_domain (cmd * state);
+  step_domains: ConvergeDir trace_states;
+  step_sound: forall n, global_step (step_domains n) (trace_states n) (trace_states (S n))
 }.
 
 Definition access {O1 O2: RandomVarDomain} (src: ProgState O1 (cmd * state)) (dst: ProgState O2 (cmd * state)): Prop :=
-  exists (l: step_path) (n: nat),
-    RandomVar_global_equiv (path_states l 0) src /\
-    RandomVar_global_equiv (path_states l n) dst.
+  exists (l: execution_trace) (n: nat),
+    RandomVar_global_equiv (trace_states l 0) src /\
+    RandomVar_global_equiv (trace_states l n) dst.
 
 Definition omega_access {O1 O2: RandomVarDomain} (src: ProgState O1 (cmd * state)) (dst: ProgState O2 (cmd * state)): Prop :=
-  exists (l: step_path),
-    RandomVar_global_equiv (path_states l 0) src /\
-    RandomVar_global_equiv (limit (path_states l) (step_domains l)) dst.
+  exists (l: execution_trace),
+    RandomVar_global_equiv (trace_states l 0) src /\
+    RandomVar_global_equiv (limit (trace_states l) (step_domains l)) dst.
 
 Definition global_state (Omega: RandomVarDomain) : Type := ProgState Omega state.
 
@@ -195,18 +191,6 @@ Definition filter_global_state {imp: Imperative} {sss: SmallStepSemantics} (filt
 Defined.
 *)
   
-(*
-Require Import Coq.Sets.Ensembles.
-
-Section PrePreds.
-
-Context {imp: Imperative} {sss: SmallStepSemantics}.
-
-Definition tm_meta_pred (P: state -> Prop): MetaState state -> Prop :=
-  fun s => match s with Terminating s' => P s' | _ => False end.
-
-End PrePreds.
-*)
 End Randomize.
 
 End Randomized.

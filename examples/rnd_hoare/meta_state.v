@@ -16,6 +16,9 @@ Inductive MetaState (state: Type): Type :=
 Definition is_Terminating {state: Type}: Ensemble (MetaState state) :=
   fun s => match s with | Terminating _ => True | _ => False end.
 
+Definition Terminating_pred {state: Type} (P: Ensemble state): Ensemble (MetaState state) :=
+  fun s => match s with | Terminating s => P s | _ => False end.
+
 Instance MetaState_SigmaAlgebra (state: Type) {state_sig: SigmaAlgebra state}: SigmaAlgebra (MetaState state).
   apply (Build_SigmaAlgebra _ (fun P => is_measurable_set (fun s => P (Terminating _ s)))).
   + hnf; intros; simpl.
@@ -64,11 +67,69 @@ Proof.
   tauto.
 Qed.
 
+Lemma Terminating_pred_measurable: forall {A} {sA: SigmaAlgebra A} (P: Ensemble A), is_measurable_set P -> is_measurable_set (Terminating_pred P).
+Proof.
+  intros.
+  simpl.
+  apply H.
+Qed.
+
 Definition NonTerminating_MSet {A} {sA: SigmaAlgebra A}: measurable_set (MetaState A) := exist _ _ NonTerminating_measurable.
 
 Definition Error_MSet {A} {sA: SigmaAlgebra A}: measurable_set (MetaState A) := exist _ _ Error_measurable.
 
 Definition is_Terminating_MSet {A} {sA: SigmaAlgebra A}: measurable_set (MetaState A) := exist _ _ is_Terminating_measurable.
+
+Definition TerminatingP_MSet {A} {sA: SigmaAlgebra A} (P: measurable_set A): measurable_set (MetaState A) := exist _ _ (Terminating_pred_measurable P (proj2_sig P)).
+
+(*
+(* This is nicer and generic. But it needs cmd to be countable. *)
+(* It is true, but I just do not want to spend time one this. *)
+Inductive raw_MetaState_pair_left_func (cmd state: Type) {sigma_state: SigmaAlgebra state} (f: @MeasurableFunction state cmd _ (max_sigma_alg _)): MetaState state -> MetaState (cmd * state) -> Prop :=
+  | Error_pair_left: raw_MetaState_pair_left_func cmd state f (Error _) (Error _)
+  | NonTerminating_pair_left: raw_MetaState_pair_left_func cmd state f (NonTerminating _) (NonTerminating _)
+  | Terminating_pair_left: forall s c, f s c -> raw_MetaState_pair_left_func cmd state f (Terminating _ s) (Terminating _ (c, s)).
+*)
+
+Inductive raw_MetaState_pair_left_choice (cmd state: Type) {sigma_state: SigmaAlgebra state} (filter: measurable_set state) (c1 c2: cmd): MetaState state -> MetaState (cmd * state) -> Prop :=
+  | Error_pair_left_choice: raw_MetaState_pair_left_choice cmd state filter c1 c2 (Error _) (Error _)
+  | NonTerminating_pair_left_choice: raw_MetaState_pair_left_choice cmd state filter c1 c2 (NonTerminating _) (NonTerminating _)
+  | Terminating_pair_left_true: forall s, filter s -> raw_MetaState_pair_left_choice cmd state filter c1 c2 (Terminating _ s) (Terminating _ (c1, s))
+  | Terminating_pair_left_false: forall s, ~ filter s -> raw_MetaState_pair_left_choice cmd state filter c1 c2 (Terminating _ s) (Terminating _ (c2, s)).
+
+Definition MetaState_pair_left_choice {cmd state: Type} {state_sig: SigmaAlgebra state} (filter: measurable_set state) (c1 c2: cmd): @MeasurableFunction (MetaState state) (MetaState (cmd * state)) _ (@MetaState_SigmaAlgebra _ (left_discreste_prod_sigma_alg cmd state)).
+  apply (Build_MeasurableFunction _ _ _ _ (raw_MetaState_pair_left_choice cmd state filter c1 c2)).
+  + intros.
+    inversion H; inversion H0; try congruence.
+  + intros.
+    destruct a.
+    - exists (Error _); constructor.
+    - exists (NonTerminating _); constructor.
+    - destruct (classic (filter s)).
+      * exists (Terminating _ (c1, s)); constructor; auto.
+      * exists (Terminating _ (c2, s)); constructor; auto.
+  + simpl.
+    intros.
+    destruct P as [P ?H].
+    simpl in *.
+    eapply is_measurable_set_proper.
+    Focus 2. {
+      apply union_measurable; apply intersection_measurable.
+      + apply (proj2_sig filter).
+      + exact (H c1).
+      + apply complement_measurable, (proj2_sig filter).
+      + exact (H c2).
+    } Unfocus.
+    rewrite Same_set_spec; intros s.
+    rewrite Union_spec, !Intersection_spec; unfold Complement, Ensembles.In.
+    split; intros.
+    - destruct (classic (filter s)); [left | right]; split; auto.
+      * apply H0.
+        constructor; auto.
+      * apply H0.
+        constructor; auto.
+    - inversion H1; subst; tauto.
+Defined.
 
 Inductive raw_MetaState_pair_left (cmd state: Type) (c: cmd): MetaState state -> MetaState (cmd * state) -> Prop :=
   | Error_pair_left: raw_MetaState_pair_left cmd state c (Error _) (Error _)
@@ -137,6 +198,15 @@ Record ProgState (Omega: RandomVarDomain) (state: Type) {state_sigma: SigmaAlgeb
 Definition ProgState_RandomVariable (Omega: RandomVarDomain) (state: Type) {state_sigma: SigmaAlgebra state} (s: ProgState Omega state): RandomVariable Omega (MetaState state) := @raw_state Omega state _ s.
 
 Global Coercion ProgState_RandomVariable: ProgState >-> RandomVariable.
+
+Definition ProgState_pair_left_choice {cmd state: Type} {state_sigma: SigmaAlgebra state} (filter: measurable_set state) (c1 c2: cmd) {Omega: RandomVarDomain} (s: ProgState Omega state): @ProgState Omega (cmd * state) (left_discreste_prod_sigma_alg cmd state).
+  refine (Build_ProgState Omega _ _ (RandomVarMap (MetaState_pair_left_choice filter c1 c2) (raw_state _ _ s)) _).
+  intros.
+  rewrite RandomVarMap_sound in H0.
+  destruct H0 as [? [? ?]].
+  pose proof inf_history_sound _ _ s h x H H0.
+  inversion H1; subst; congruence.
+Defined.
 
 Definition ProgState_pair_left {cmd state: Type} {state_sigma: SigmaAlgebra state} (c: cmd) {Omega: RandomVarDomain} (s: ProgState Omega state): @ProgState Omega (cmd * state) (left_discreste_prod_sigma_alg cmd state).
   refine (Build_ProgState Omega _ _ (RandomVarMap (MetaState_pair_left c) (raw_state _ _ s)) _).

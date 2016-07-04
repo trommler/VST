@@ -53,7 +53,11 @@ Axiom limit_domain_sound: limit_domain (main_domain filter Omegas l dir) = limit
 
 Axiom limit_state_sound: RandomVar_global_equiv (limit (main_state filter Omegas l dir) (main_dir filter Omegas l dir)) (limit l dir).
 
-Axiom step_sound: forall m r h, sub_dir filter Omegas l dir m r h -> exists n, RandomVar_local_equiv (sub_state filter Omegas l dir m r) (l n) h h /\ forall h', prefix_history h h' -> RandomVar_local_equiv (sub_state filter Omegas l dir m (S r)) (l (S n)) h' h'.
+Axiom sub_step_sound: forall m r h, sub_dir filter Omegas l dir m r h -> exists n, dir n h /\ RandomVar_local_equiv (sub_state filter Omegas l dir m r) (l n) h h /\ forall h', prefix_history h h' -> RandomVar_local_equiv (sub_state filter Omegas l dir m (S r)) (l (S n)) h' h'.
+
+Axiom cut_filter_complete: forall m r h s, sub_dir filter Omegas l dir m (S r) h -> sub_state filter Omegas l dir m (S r) h s  -> ~ filter m s.
+
+Axiom cut_filter_sound: forall m h s, sub_dir filter Omegas l dir (S m) 0 h -> sub_state filter Omegas l dir (S m) 0 h s  -> filter m s.
 
 End CUT_STREAM.
 
@@ -1475,7 +1479,11 @@ Axiom limit_domain_sound: limit_domain main_domain = limit_domain Omegas.
 
 Axiom limit_state_sound: RandomVar_global_equiv (limit main_state main_dir) (limit l dir).
 
-Axiom step_sound: forall m r h, sub_dir m r h -> exists n, RandomVar_local_equiv (sub_state m r) (l n) h h /\ forall h', prefix_history h h' -> RandomVar_local_equiv (sub_state m (S r)) (l (S n)) h' h'.
+Axiom sub_step_sound: forall m r h, sub_dir m r h -> exists n, dir n h /\ RandomVar_local_equiv (sub_state m r) (l n) h h /\ forall h', prefix_history h h' -> RandomVar_local_equiv (sub_state m (S r)) (l (S n)) h' h'.
+
+Axiom cut_filter_complete: forall m r h s, sub_dir m (S r) h -> sub_state m (S r) h s  -> ~ filter m s.
+
+Axiom cut_filter_sound: forall m h s, sub_dir (S m) 0 h -> sub_state (S m) 0 h s  -> filter m s.
 
 End CutStream.
 

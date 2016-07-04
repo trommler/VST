@@ -142,6 +142,17 @@ Definition left_discreste_prod_sigma_alg (O1 O2: Type) {sa2: SigmaAlgebra O2}: S
     auto.
 Defined.
 
+Definition LeftP_MSet {O1 O2: Type} {sa2: SigmaAlgebra O2} (P: Ensemble O1): @measurable_set (O1 * O2) (left_discreste_prod_sigma_alg O1 O2).
+  refine (exist _ (fun xy => P (fst xy)) _).
+  simpl.
+  intros.
+  destruct (classic (P x1)).
+  + eapply is_measurable_set_proper; [| apply full_measurable].
+    rewrite Same_set_spec; intro x; rewrite Full_set_spec; tauto.
+  + eapply is_measurable_set_proper; [| apply empty_measurable].
+    rewrite Same_set_spec; intro x; rewrite Empty_set_spec; tauto.
+Defined.
+
 Require Import Coq.Reals.Rdefinitions.
 Require Import Coq.Reals.Rfunctions.
 

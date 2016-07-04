@@ -107,6 +107,22 @@ Definition undistinguishable_sub_domain (O1 O2: RandomVarDomain): Prop :=
 
 Definition RandomVar_local_equiv {O1} {O2} {A: Type} {SA: SigmaAlgebra A} (v1: RandomVariable O1 A) (v2: RandomVariable O2 A) (h1 h2: RandomHistory): Prop := forall a, v1 h1 a <-> v2 h2 a.
 
+Lemma local_equiv_domain_equiv: forall {O1} {O2} {A: Type} {SA: SigmaAlgebra A} (v1: RandomVariable O1 A) (v2: RandomVariable O2 A) h1 h2, RandomVar_local_equiv v1 v2 h1 h2 -> (O1 h1 <-> O2 h2).
+Proof.
+  intros.
+  split; intros.
+  + apply (PrFamily.rf_complete _ _ v1) in H0.
+    destruct H0 as [? ?].
+    specialize (H x).
+    rewrite H in H0.
+    apply PrFamily.rf_sound in H0; auto.
+  + apply (PrFamily.rf_complete _ _ v2) in H0.
+    destruct H0 as [? ?].
+    specialize (H x).
+    rewrite <- H in H0.
+    apply PrFamily.rf_sound in H0; auto.
+Qed.
+
 Definition RandomVar_global_equiv {O1} {O2} {A: Type} {SA: SigmaAlgebra A} (v1: RandomVariable O1 A) (v2: RandomVariable O2 A): Prop := forall h, RandomVar_local_equiv v1 v2 h h.
 
 Lemma global_equiv_domain_equal: forall {O1} {O2} {A: Type} {SA: SigmaAlgebra A} (v1: RandomVariable O1 A) (v2: RandomVariable O2 A), RandomVar_global_equiv v1 v2 -> O1 = O2.
@@ -124,6 +140,30 @@ Proof.
     specialize (H h x).
     rewrite <- H in H0.
     apply PrFamily.rf_sound in H0; auto.
+Qed.
+
+Lemma global_equiv_refl: forall {Omega} {A: Type} {SA: SigmaAlgebra A} (v: RandomVariable Omega A), RandomVar_global_equiv v v.
+Proof.
+  intros.
+  hnf; intros.
+  hnf; intros.
+  reflexivity.
+Qed.
+
+Lemma global_equiv_sym: forall {O1 O2} {A: Type} {SA: SigmaAlgebra A} (v1: RandomVariable O1 A) (v2: RandomVariable O2 A), RandomVar_global_equiv v1 v2 -> RandomVar_global_equiv v2 v1.
+Proof.
+  intros.
+  hnf; intros. specialize (H h).
+  hnf; intros. specialize (H a).
+  tauto.
+Qed.
+
+Lemma global_equiv_trans: forall {O1 O2 O3} {A: Type} {SA: SigmaAlgebra A} (v1: RandomVariable O1 A) (v2: RandomVariable O2 A) (v3: RandomVariable O3 A), RandomVar_global_equiv v1 v2 -> RandomVar_global_equiv v2 v3 -> RandomVar_global_equiv v1 v3.
+Proof.
+  intros.
+  hnf; intros. specialize (H h). specialize (H0 h).
+  hnf; intros. specialize (H a). specialize (H0 a).
+  tauto.
 Qed.
 
 Definition unit_space_domain: RandomVarDomain :=

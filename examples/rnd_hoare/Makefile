@@ -13,7 +13,7 @@ FILES = \
   random_oracle.v random_history_order.v random_history_conflict.v history_anti_chain.v\
   random_variable.v meta_state.v pstate_stream_lemmas.v pstate_stream_limit.v cut_stream.v\
   imperative.v probabilistic_pred.v max_anti_chain.v\
-  normal_imperative.v hoare.v
+  normal_imperative.v imperative_lemmas.v hoare.v
 
 $(FILES:%.v=%.vo): %.vo: %.v
 	@echo COQC $*.v
