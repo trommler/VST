@@ -35,6 +35,9 @@ Axiom limit_domain_same_covered: forall {ora: RandomOracle} {SFo: SigmaAlgebraFa
 Axiom limit_domain_forward: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} (Omegas: RandomVarDomainStream) n,
   future_anti_chain (Omegas n) (limit_domain Omegas).
 
+Axiom dir_limit_slow: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {Omegas: RandomVarDomainStream} {state: Type} {state_sigma: SigmaAlgebra state} (l: ProgStateStream Omegas state) (dir: ConvergeDir l) n h,
+  covered_by h (dir n) \/ RandomVar_local_equiv (l n) (limit l dir) h h.
+
 (* TODO: change it to "slow" *)
 Axiom ConvergeDir_uncovered_limit_domain_spec: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {Omegas: RandomVarDomainStream} {state: Type} {state_sigma: SigmaAlgebra state} (l: ProgStateStream Omegas state) (dir: ConvergeDir l) n h,
   ~ covered_by h (dir n) ->
@@ -515,6 +518,30 @@ Lemma limit_domain_forward: forall (Omegas: RandomVarDomainStream) n,
   future_anti_chain (Omegas n) (limit_domain Omegas).
 Proof. intros; apply limit_domain_anti_chain_future. Qed.
 
+Lemma dir_limit_slow: forall {Omegas: RandomVarDomainStream} {state: Type} {state_sigma: SigmaAlgebra state} (l: ProgStateStream Omegas state) (dir: ConvergeDir l) n h,
+  covered_by h (dir n) \/ RandomVar_local_equiv (l n) (limit l dir) h h.
+Proof.
+  intros.
+  destruct (classic (covered_by h (dir n))); auto.
+  right.
+  hnf; intros; split; intros.
+  + left.
+    exists n; auto.
+  + destruct H0 as [[n0 [? ?]] | [? ?]].
+    - destruct (le_dec n0 n) as [?H | ?H].
+      * pose proof ProgStateStream_stable l dir n0 n h H2 H1 a; tauto.
+      * apply (ProgStateStream_stable l dir n n0 h); auto; omega.
+    - specialize (H1 n 0).
+      destruct H1 as [n' [h' [? [? [? ?]]]]].
+      exfalso; apply (ConvergeDir_uncovered_mono dir n n' h').
+      * omega.
+      * intro; apply H; clear H.
+        destruct H5 as [h'' [? ?]]; exists h''; split; auto.
+        eapply prefix_history_trans; eauto.
+      * exists h'; split; auto.
+        apply prefix_history_refl.
+Qed.
+
 End StreamLimit.
 
 End StreamLimit.
@@ -548,4 +575,3 @@ Proof.
   + apply strict_conflict_conflict in H1.
     exact (@rand_consi _ _ (raw_anti_chain_legal (limit_domain Omegas)) _ _ H1 H H0).
 Qed.
-    

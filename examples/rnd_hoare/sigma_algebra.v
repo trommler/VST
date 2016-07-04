@@ -142,6 +142,8 @@ Definition left_discreste_prod_sigma_alg (O1 O2: Type) {sa2: SigmaAlgebra O2}: S
     auto.
 Defined.
 
+Definition Trivial_MSet {Omega: Type} (P: Ensemble Omega): @measurable_set Omega (max_sigma_alg Omega) := exist _ P I.
+
 Definition LeftP_MSet {O1 O2: Type} {sa2: SigmaAlgebra O2} (P: Ensemble O1): @measurable_set (O1 * O2) (left_discreste_prod_sigma_alg O1 O2).
   refine (exist _ (fun xy => P (fst xy)) _).
   simpl.

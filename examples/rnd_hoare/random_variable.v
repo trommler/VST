@@ -179,6 +179,8 @@ Lemma RandomVarMap_sound: forall {Omega: RandomVarDomain} {A B: Type} {SA: Sigma
   RandomVarMap f v h b <-> exists a, v h a /\ f a b.
 Proof. intros. apply PrFamily.Compose_spec; auto. Qed.
 
+Opaque RandomVarMap.
+
 Definition post_dom_var (O1 O2: RandomVarDomain) (Hf: future_anti_chain O1 O2) (Hs: same_covered_anti_chain O1 O2) {A: Type} {SA: SigmaAlgebra A}: RandomVariable O1 A -> RandomVariable O2 A.
   refine (fun f => PrFamily.Build_MeasurableFunction _ _ _ (fun h a => O2 h /\ exists h', prefix_history h' h /\ f h' a) _ _ _ _).
   + intros h ? ? [? [h' [? ?]]] [_ [h'' [? ?]]].

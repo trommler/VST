@@ -217,6 +217,21 @@ Definition ProgState_pair_left {cmd state: Type} {state_sigma: SigmaAlgebra stat
   inversion H1; subst; congruence.
 Defined.
 
+Lemma ProgState_pair_left_Terminating_spec {cmd state: Type} {state_sigma: SigmaAlgebra state}: forall (c: cmd) {Omega: RandomVarDomain} (s: ProgState Omega state) h cc ss,
+  ProgState_pair_left c s h (Terminating _ (cc, ss)) <-> cc = c /\ s h (Terminating _ ss).
+Proof.
+  intros.
+Opaque RandomVarMap. simpl. Transparent RandomVarMap. (* Should Opaque Always. *)
+  rewrite RandomVarMap_sound.
+  split; intros.
+  + destruct H as [? [? ?]]; simpl in *.
+    inversion H0; subst.
+    auto.
+  + exists (Terminating _ ss).
+    destruct H; subst; split; auto.
+    simpl; constructor.
+Qed.
+
 Definition non_branch_tstate {state: Type} {state_sigma: SigmaAlgebra state} (s: state): ProgState unit_space_domain state.
   refine (Build_ProgState _ _ _ (unit_space_var (Terminating _ s)) _).
   intros.
