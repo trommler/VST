@@ -19,6 +19,9 @@ Definition is_Terminating {state: Type}: Ensemble (MetaState state) :=
 Definition Terminating_pred {state: Type} (P: Ensemble state): Ensemble (MetaState state) :=
   fun s => match s with | Terminating s => P s | _ => False end.
 
+Definition partial_Terminating_pred {state: Type} (P: Ensemble state): Ensemble (MetaState state) :=
+  fun s => match s with | Terminating s => P s | _ => True end.
+
 Instance MetaState_SigmaAlgebra (state: Type) {state_sig: SigmaAlgebra state}: SigmaAlgebra (MetaState state).
   apply (Build_SigmaAlgebra _ (fun P => is_measurable_set (fun s => P (Terminating _ s)))).
   + hnf; intros; simpl.
@@ -91,6 +94,54 @@ Inductive raw_MetaState_pair_left_func (cmd state: Type) {sigma_state: SigmaAlge
   | Terminating_pair_left: forall s c, f s c -> raw_MetaState_pair_left_func cmd state f (Terminating _ s) (Terminating _ (c, s)).
 *)
 
+Inductive raw_lift_mf {A B} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} (f: MeasurableFunction A B): MetaState A -> MetaState B -> Prop :=
+  | Error_lift_mf: raw_lift_mf f (Error _) (Error _)
+  | NonTerminating_lift_mf: raw_lift_mf f (NonTerminating _) (NonTerminating _)
+  | Terminating_lift_mf: forall a b, f a b -> raw_lift_mf f (Terminating _ a) (Terminating _ b)
+  .
+
+Definition lift_mf {A B} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} (f: MeasurableFunction A B): MeasurableFunction (MetaState A) (MetaState B).
+  apply (Build_MeasurableFunction _ _ _ _ (raw_lift_mf f)).
+  + intros.
+    inversion H; inversion H0; try congruence.
+    subst.
+    inversion H5; subst.
+    pose proof rf_functionality _ _ f _ _ _ H1 H4.
+    subst; auto.
+  + intros.
+    destruct a.
+    - exists (Error _); constructor.
+    - exists (NonTerminating _); constructor.
+    - destruct (rf_complete _ _ f a) as [b ?]; exists (Terminating _ b); constructor; auto.
+  + simpl.
+    intros P.
+    destruct P as [P ?H].
+    simpl in *.
+    pose proof rf_preserve _ _ f (exist _ _ H).
+    eapply is_measurable_set_proper; [| exact H0].
+    simpl.
+    split; hnf; unfold In; intros.
+    - apply H1; constructor; auto.
+    - inversion H2; auto.
+Defined.
+
+Lemma lift_mf_compose {A B C} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} {sC: SigmaAlgebra C} (f: MeasurableFunction A B) (g: MeasurableFunction B C): Compose (lift_mf g) (lift_mf f) = lift_mf (Compose g f).
+Proof.
+  intros.
+  MeasurableFunction_extensionality a c.
+  simpl.
+  split; intros.
+  + destruct H as [b [? ?]].
+    destruct a, b, c; inversion H; inversion H0; constructor; subst.
+    exists b; auto.
+  + destruct a, c; inversion H; subst.
+    - exists (Error _); split; auto; constructor.
+    - exists (NonTerminating _); split; auto; constructor.
+    - destruct H2 as [b [? ?]].
+      exists (Terminating _ b); split; auto; constructor; auto.
+Qed.
+    
+(*
 Inductive raw_MetaState_pair_left_choice (cmd state: Type) {sigma_state: SigmaAlgebra state} (filter: measurable_set state) (c1 c2: cmd): MetaState state -> MetaState (cmd * state) -> Prop :=
   | Error_pair_left_choice: raw_MetaState_pair_left_choice cmd state filter c1 c2 (Error _) (Error _)
   | NonTerminating_pair_left_choice: raw_MetaState_pair_left_choice cmd state filter c1 c2 (NonTerminating _) (NonTerminating _)
@@ -130,7 +181,18 @@ Definition MetaState_pair_left_choice {cmd state: Type} {state_sig: SigmaAlgebra
         constructor; auto.
     - inversion H1; subst; tauto.
 Defined.
+*)
 
+Definition MetaState_fun_left {cmd state: Type} {state_sig: SigmaAlgebra state} (f: cmd -> cmd): @MeasurableFunction (MetaState (cmd * state)) (MetaState (cmd * state)) (@MetaState_SigmaAlgebra _ (left_discreste_prod_sigma_alg cmd state)) (@MetaState_SigmaAlgebra _ (left_discreste_prod_sigma_alg cmd state)) :=
+  lift_mf (LeftF_MFun f).
+
+Definition MetaState_pair_left {cmd state: Type} {state_sig: SigmaAlgebra state} (c: cmd): @MeasurableFunction (MetaState state) (MetaState (cmd * state)) _ (@MetaState_SigmaAlgebra _ (left_discreste_prod_sigma_alg cmd state)) :=
+  lift_mf (LeftPair_MFun c).
+
+Definition MetaState_snd {cmd state: Type} {state_sig: SigmaAlgebra state}: @MeasurableFunction (MetaState (cmd * state)) (MetaState state) (@MetaState_SigmaAlgebra _ (left_discreste_prod_sigma_alg cmd state)) _ :=
+  lift_mf Snd_MFun.
+
+(*
 Inductive raw_MetaState_pair_left (cmd state: Type) (c: cmd): MetaState state -> MetaState (cmd * state) -> Prop :=
   | Error_pair_left: raw_MetaState_pair_left cmd state c (Error _) (Error _)
   | NonTerminating_pair_left: raw_MetaState_pair_left cmd state c (NonTerminating _) (NonTerminating _)
@@ -179,7 +241,7 @@ Definition MetaState_snd {cmd state: Type} {state_sig: SigmaAlgebra state}: @Mea
     - apply H0; constructor.
     - inversion H1; auto.
 Defined.
-
+*)
 Definition meta_state_measurable_set {state: Type} {state_sig: SigmaAlgebra state} (P: measurable_set state) (error non_terminating: Prop): measurable_set (MetaState state).
   exists (fun x => match x with | Error => error | NonTerminating => non_terminating | Terminating s => P s end).
   simpl.
@@ -199,6 +261,62 @@ Definition ProgState_RandomVariable (Omega: RandomVarDomain) (state: Type) {stat
 
 Global Coercion ProgState_RandomVariable: ProgState >-> RandomVariable.
 
+Lemma ProgState_extensionality: forall (Omega: RandomVarDomain) (state: Type) {state_sigma: SigmaAlgebra state} (s1 s2: ProgState Omega state), (forall h a, s1 h a <-> s2 h a) -> s1 = s2.
+Proof.
+  intros.
+  destruct s1 as [s1 ?H], s2 as [s2 ?H].
+  assert (s1 = s2) by (RandomVariable_extensionality h a; auto); subst.
+  assert (H0 = H1) by (apply proof_irrelevance); subst.
+  auto.
+Qed.
+
+Tactic Notation "ProgState_extensionality" ident(x) ident(y) :=
+  match goal with
+    [ |- ?X = ?Y ] =>
+     apply ProgState_extensionality; intros x y
+  end.
+
+Definition ProgState_lift_mf {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} (f: MeasurableFunction A B) {Omega: RandomVarDomain} (s: ProgState Omega A): ProgState Omega B.
+  refine (Build_ProgState Omega _ _ (RandomVarMap (lift_mf f) (raw_state _ _ s)) _).
+  intros.
+  rewrite RandomVarMap_sound in H0.
+  destruct H0 as [? [? ?]].
+  pose proof inf_history_sound _ _ s h x H H0.
+  inversion H1; subst; congruence.
+Defined.
+
+(*
+Lemma ProgState_lift_mf_proper: forall {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} (f: MeasurableFunction A B) {O1 O2: RandomVarDomain} (sa1: ProgState O1 A) (sa2: ProgState O2 A),
+  RandomVar_global_equiv sa1 sa2 -> RandomVar_global_equiv (ProgState_lift_mf f sa1) (ProgState_lift_mf f sa2).
+Proof.
+  intros.
+*)
+Lemma ProgState_lift_mf_Terminating_spec: forall {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} (f: MeasurableFunction A B) {Omega: RandomVarDomain} (s: ProgState Omega A) h b,
+  ProgState_lift_mf f s h (Terminating _ b) <-> exists a, f a b /\ s h (Terminating _ a).
+Proof.
+  intros.
+Opaque RandomVarMap. simpl. Transparent RandomVarMap. (* Should Opaque Always. *)
+  rewrite RandomVarMap_sound.
+  split; intros.
+  + destruct H as [? [? ?]]; simpl in *.
+    inversion H0; subst.
+    eauto.
+  + destruct H as [a ?]; simpl in *.
+    exists (Terminating _ a).
+    destruct H; subst; split; auto.
+    simpl; constructor; auto.
+Qed.
+
+Lemma ProgState_lift_mf_rev_exists: forall {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} (f: MeasurableFunction A B) {Omega: RandomVarDomain} (sb: ProgState Omega B),
+  (forall h mb, sb h mb -> exists ma, lift_mf f ma mb) ->
+  exists sa, sb = ProgState_lift_mf f sa.
+Proof.
+  intros.
+  admit. (* use choice axiom. *)
+Qed.
+
+(*
+(* TODO: Define the following two using ProgState_lift_mf *)
 Definition ProgState_pair_left_choice {cmd state: Type} {state_sigma: SigmaAlgebra state} (filter: measurable_set state) (c1 c2: cmd) {Omega: RandomVarDomain} (s: ProgState Omega state): @ProgState Omega (cmd * state) (left_discreste_prod_sigma_alg cmd state).
   refine (Build_ProgState Omega _ _ (RandomVarMap (MetaState_pair_left_choice filter c1 c2) (raw_state _ _ s)) _).
   intros.
@@ -207,27 +325,26 @@ Definition ProgState_pair_left_choice {cmd state: Type} {state_sigma: SigmaAlgeb
   pose proof inf_history_sound _ _ s h x H H0.
   inversion H1; subst; congruence.
 Defined.
+*)
+Definition ProgState_fun_left {cmd state: Type} {state_sigma: SigmaAlgebra state} (f: cmd -> cmd) {Omega: RandomVarDomain} (s: @ProgState Omega (cmd * state) (left_discreste_prod_sigma_alg cmd state)): @ProgState Omega (cmd * state) (left_discreste_prod_sigma_alg cmd state)
+  := ProgState_lift_mf (LeftF_MFun f) s.
 
-Definition ProgState_pair_left {cmd state: Type} {state_sigma: SigmaAlgebra state} (c: cmd) {Omega: RandomVarDomain} (s: ProgState Omega state): @ProgState Omega (cmd * state) (left_discreste_prod_sigma_alg cmd state).
-  refine (Build_ProgState Omega _ _ (RandomVarMap (MetaState_pair_left c) (raw_state _ _ s)) _).
-  intros.
-  rewrite RandomVarMap_sound in H0.
-  destruct H0 as [? [? ?]].
-  pose proof inf_history_sound _ _ s h x H H0.
-  inversion H1; subst; congruence.
-Defined.
+Definition ProgState_pair_left {cmd state: Type} {state_sigma: SigmaAlgebra state} (c: cmd) {Omega: RandomVarDomain} (s: ProgState Omega state): @ProgState Omega (cmd * state) (left_discreste_prod_sigma_alg cmd state)
+  := ProgState_lift_mf (LeftPair_MFun c) s.
+
+Definition ProgState_snd {cmd state: Type} {state_sigma: SigmaAlgebra state} {Omega: RandomVarDomain} (s: @ProgState Omega (cmd * state) (left_discreste_prod_sigma_alg cmd state)): ProgState Omega state
+  := ProgState_lift_mf Snd_MFun s.
 
 Lemma ProgState_pair_left_Terminating_spec {cmd state: Type} {state_sigma: SigmaAlgebra state}: forall (c: cmd) {Omega: RandomVarDomain} (s: ProgState Omega state) h cc ss,
   ProgState_pair_left c s h (Terminating _ (cc, ss)) <-> cc = c /\ s h (Terminating _ ss).
 Proof.
   intros.
-Opaque RandomVarMap. simpl. Transparent RandomVarMap. (* Should Opaque Always. *)
-  rewrite RandomVarMap_sound.
+  unfold ProgState_pair_left.
+  rewrite ProgState_lift_mf_Terminating_spec.
   split; intros.
   + destruct H as [? [? ?]]; simpl in *.
-    inversion H0; subst.
-    auto.
-  + exists (Terminating _ ss).
+    inversion H; subst; auto.
+  + exists ss.
     destruct H; subst; split; auto.
     simpl; constructor.
 Qed.
@@ -448,5 +565,11 @@ Qed.
 *)
 End ProgState.
   
+Tactic Notation "ProgState_extensionality" ident(x) ident(y) :=
+  match goal with
+    [ |- ?X = ?Y ] =>
+     apply ProgState_extensionality; intros x y
+  end.
+
 
 

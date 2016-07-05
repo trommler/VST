@@ -1,5 +1,6 @@
 Require Export Coq.Reals.Rdefinitions.
 Require Export Coq.Reals.Rfunctions.
+Require Import RndHoare.axiom.
 Require Import RndHoare.sigma_algebra.
 Require Import RndHoare.measurable_function.
 Require Import RndHoare.probability_measure.
@@ -131,6 +132,18 @@ Definition MeasurableFunction_raw_function (Omega: measurable_subspace) (B: Type
 
 Coercion MeasurableFunction_raw_function: MeasurableFunction >-> Funclass.
 
+Lemma MeasurableFunction_extensionality: forall {Omega: measurable_subspace} {B: Type} {SB: SigmaAlgebra B} (f g: MeasurableFunction Omega B), (forall x b, f x b <-> g x b) -> f = g.
+Proof.
+  intros.
+  destruct f as [f ?H ?H ?H ?H], g as [g ?H ?H ?H ?H].
+  assert (f = g) by (extensionality x; extensionality b; apply prop_ext; auto); subst g.
+  assert (H0 = H4) by (apply proof_irrelevance).
+  assert (H1 = H5) by (apply proof_irrelevance).
+  assert (H2 = H6) by (apply proof_irrelevance).
+  assert (H3 = H7) by (apply proof_irrelevance).
+  subst. reflexivity.
+Qed.
+  
 Lemma rf_preserve_proof_minus1: forall (Omega: measurable_subspace) (B: Type) {SB: SigmaAlgebra B} (f: U -> B -> Prop) b0,
   let P0 := eq b0 in
   sigma_algebra.is_measurable_set P0 ->
@@ -370,6 +383,23 @@ Proof.
     exists (exist _ x H1); simpl.
     split; auto.
     exists x0; auto.
+Qed.
+
+Lemma Compose_assoc: forall {Omega: measurable_subspace} {B C D: Type} {SB: SigmaAlgebra B} {SC: SigmaAlgebra C} {SD: SigmaAlgebra D} (h: measurable_function.MeasurableFunction C D) (g: measurable_function.MeasurableFunction B C) (f: MeasurableFunction Omega B), Compose h (Compose g f) = Compose (measurable_function.Compose h g) f.
+Proof.
+  intros.
+  apply MeasurableFunction_extensionality; intros x d.
+  rewrite !Compose_spec.
+  split; intros.
+  + destruct H as [c [? ?]].
+    rewrite Compose_spec in H.
+    destruct H as [b [? ?]].
+    exists b.
+    split; auto.
+    exists c; auto.
+  + destruct H as [b [? [c [? ?]]]].
+    exists c; split; auto.
+    rewrite Compose_spec; exists b; auto.
 Qed.
 
 Context {PrF: ProbabilityMeasureFamily U}.

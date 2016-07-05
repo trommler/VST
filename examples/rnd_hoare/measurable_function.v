@@ -1,3 +1,4 @@
+Require Import RndHoare.axiom.
 Require Import RndHoare.sigma_algebra.
 
 Record MeasurableFunction (A B: Type) {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} : Type := {
@@ -10,6 +11,23 @@ Record MeasurableFunction (A B: Type) {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} 
 Definition MeasurableFunction_raw_function {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} (f: MeasurableFunction A B): A -> B -> Prop := raw_function _ _ f.
 
 Coercion MeasurableFunction_raw_function: MeasurableFunction >-> Funclass.
+
+Lemma MeasurableFunction_extensionality: forall {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} (f g: MeasurableFunction A B), (forall a b, f a b <-> g a b) -> f = g.
+Proof.
+  intros.
+  destruct f as [f ?H ?H ?H], g as [g ?H ?H ?H].
+  assert (f = g) by (extensionality x; extensionality b; apply prop_ext; auto); subst g.
+  assert (H0 = H3) by (apply proof_irrelevance).
+  assert (H1 = H4) by (apply proof_irrelevance).
+  assert (H2 = H5) by (apply proof_irrelevance).
+  subst. reflexivity.
+Qed.
+
+Tactic Notation "MeasurableFunction_extensionality" ident(x) ident(y) :=
+  match goal with
+    [ |- ?X = ?Y ] =>
+     apply MeasurableFunction_extensionality; intros x y
+  end.
 
 Definition PreImage_MSet {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} (f: MeasurableFunction A B) (PB: measurable_set B): measurable_set A := exist _ _ (rf_preserve A B f PB).
 
@@ -131,6 +149,112 @@ Definition Compose {A B C: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} {sC: 
     - destruct H2 as [? [? ?]].
       apply (H1 x0); auto.
 Defined.
+
+Definition LeftPair_MFun {O1} (a: O1) {O2: Type} {sa2: SigmaAlgebra O2}: @MeasurableFunction O2 (O1 * O2) _ (left_discreste_prod_sigma_alg O1 O2).
+  apply (Build_MeasurableFunction _ _ _ _ (fun b ab => (a, b) = ab)).
+  + intros. congruence.
+  + intros; eauto.
+  + intros.
+    destruct P as [P ?H].
+    simpl in *.
+    eapply is_measurable_set_proper; [| exact (H a)].
+    rewrite Same_set_spec; intro b; simpl.
+    split.
+    - intros.
+      apply H0; auto.
+    - intros.
+      subst; auto.
+Defined.
+
+Definition Snd_MFun {O1} {O2: Type} {sa2: SigmaAlgebra O2}: @MeasurableFunction (O1 * O2) O2 (left_discreste_prod_sigma_alg O1 O2) _.
+  apply (Build_MeasurableFunction _ _ _ _ (fun ab b => snd ab = b)).
+  + intros. congruence.
+  + intros; eauto.
+  + intros.
+    destruct P as [P ?H].
+    simpl in *.
+    intro a; eapply is_measurable_set_proper; [| exact H].
+    rewrite Same_set_spec; intro b; simpl.
+    split.
+    - intros.
+      apply H0; auto.
+    - intros.
+      subst; auto.
+Defined.
+
+Definition LeftF_MFun {O1 O2: Type} {sa2: SigmaAlgebra O2} (f: O1 -> O1): @MeasurableFunction (O1 * O2) (O1 * O2) (left_discreste_prod_sigma_alg O1 O2) (left_discreste_prod_sigma_alg O1 O2).
+  apply (Build_MeasurableFunction _ _ _ _ (fun ab1 ab2 => f (fst ab1) = fst ab2 /\ snd ab1 = snd ab2)).
+  + intros [?a ?b] [?a ?b] [?a ?b] [? ?] [? ?].
+    simpl in *.
+    subst; subst; auto.
+  + intros [?a ?b].
+    exists (f a, b); simpl; auto.
+  + intros.
+    destruct P as [P ?H].
+    simpl in *.
+    intro a; eapply is_measurable_set_proper; [| exact (H (f a))].
+    rewrite Same_set_spec; intro b; simpl.
+    split.
+    - intros.
+      apply H0; auto.
+    - intros ? [?a ?b].
+      simpl; intros [? ?]; subst; auto.
+Defined.
+
+Lemma LeftF_MFun_compose: forall {O1 O2: Type} {sa2: SigmaAlgebra O2} (f g: O1 -> O1), Compose (LeftF_MFun f) (LeftF_MFun g) = LeftF_MFun (Basics.compose f g).
+Proof.
+  intros.
+  MeasurableFunction_extensionality ab1 ab2.
+  simpl.
+  split; intros.
+  + destruct H as [[?a ?b] [[? ?] [? ?]]].
+    destruct ab1 as [?a ?b], ab2 as [?a ?b]; 
+    simpl in *; subst.
+    auto.
+  + destruct ab1 as [?a ?b], ab2 as [?a ?b]; 
+    destruct H; simpl in *; subst.
+    exists (g a, b0); simpl; auto.
+Qed.
+
+Definition LeftF_MFun' {O1 O2: Type} {sa2: SigmaAlgebra O2} (f: @MeasurableFunction O1 O1 (max_sigma_alg _) (max_sigma_alg _)): @MeasurableFunction (O1 * O2) (O1 * O2) (left_discreste_prod_sigma_alg O1 O2) (left_discreste_prod_sigma_alg O1 O2).
+  apply (Build_MeasurableFunction _ _ _ _ (fun ab1 ab2 => f (fst ab1) (fst ab2) /\ snd ab1 = snd ab2)).
+  + intros [?a ?b] [?a ?b] [?a ?b] [? ?] [? ?].
+    simpl in *.
+    subst; subst.
+    pose proof rf_functionality _ _ f _ _ _ H H1; subst; auto.
+  + intros [?a ?b].
+    destruct (rf_complete _ _ f a) as [a' ?].
+    exists (a', b); simpl; auto.
+  + intros.
+    destruct P as [P ?H].
+    simpl in *.
+    intro a.
+    destruct (rf_complete _ _ f a) as [a' ?].
+    eapply is_measurable_set_proper; [| exact (H a')].
+    rewrite Same_set_spec; intro b; simpl.
+    split.
+    - intros.
+      apply H1; auto.
+    - intros ? [?a ?b].
+      simpl; intros [? ?]; subst.
+      pose proof rf_functionality _ _ f _ _ _ H0 H2; subst; auto.
+Defined.
+
+Lemma LeftF_MFun'_compose: forall {O1 O2: Type} {sa2: SigmaAlgebra O2} (f g: MeasurableFunction O1 O1), Compose (LeftF_MFun' f) (LeftF_MFun' g) = LeftF_MFun' (Compose f g).
+Proof.
+  intros.
+  MeasurableFunction_extensionality ab1 ab2.
+  simpl.
+  split; intros.
+  + destruct H as [[?a ?b] [[? ?] [? ?]]].
+    destruct ab1 as [?a ?b], ab2 as [?a ?b]; 
+    simpl in *; subst.
+    eauto.
+  + destruct ab1 as [?a ?b], ab2 as [?a ?b]; 
+    destruct H; simpl in *; subst.
+    destruct H as [a1 [? ?]].
+    exists (a1, b0); auto.
+Qed.
 
 Require Import Coq.Reals.Rdefinitions.
 

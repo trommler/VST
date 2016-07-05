@@ -47,6 +47,9 @@ Inductive step {imp: Imperative} {sss: SmallStepSemantics}: cmd * state -> foral
   | step_if_false: forall e c1 c2 s, eval_bool e s false -> step (Sifthenelse e c1 c2, s) (non_branch_tstate (c2, s))
   | step_while_true: forall e c s, eval_bool e s true -> step (Swhile e c, s) (non_branch_tstate (Ssequence c (Swhile e c), s))
   | step_while_false: forall e c s, eval_bool e s false -> step (Swhile e c, s) (non_branch_tstate (Sskip, s))
+  | step_seq: forall c1 c2 s Omega (cs: ProgState Omega (cmd * state)),
+                step (c1, s) cs ->
+                step (Ssequence c1 c2, s) (ProgState_fun_left (fun c1' => Ssequence c1' c2) cs)
   | step_skip: forall c s, step (Ssequence Sskip c, s) (non_branch_tstate (c, s)).
 
 End Normal.

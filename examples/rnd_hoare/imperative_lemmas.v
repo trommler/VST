@@ -46,28 +46,203 @@ Import Normal.
 
 Context {Nimp: Normal.Imperative} {Nsss: Normal.SmallStepSemantics}.
 
-Lemma guarded_skip_access_is_no_guard: forall {O1 O2: RandomVarDomain} (src: ProgState O1 (cmd * state)) (dst: ProgState O2 (cmd * state)), guarded_omega_access Sskip src dst <-> omega_access src dst.
-Admitted.
+Lemma cmd_not_rec: forall c1 c2, Ssequence c1 c2 <> c2.
+Proof.
+  intros.
+  revert c1; induction c2; intros.
+  + intro; inversion H.
+  + intro; inversion H.
+  + intro; inversion H.
+  + intro; inversion H.
+    apply (IHc2_2 c2_1); auto.
+  + intro; inversion H.
+Qed.
 
-Lemma guarded_seq_const_access: forall {O1 O2: RandomVarDomain} (c1 c2: cmd) (src: ProgState O1 state) (dst: ProgState O2 state),
-  guarded_omega_access
-   (Ssequence Sskip c2)
-   (ProgState_pair_left (Ssequence c1 c2) src)
-   (ProgState_pair_left (Ssequence Sskip c2) dst) ->
+Definition seq1_MFun (c2: cmd): @MeasurableFunction cmd cmd (max_sigma_alg _) (max_sigma_alg _).
+  refine (Build_MeasurableFunction _ _ _ _ (fun c c' => c = Ssequence c' c2 \/ c' = c2 /\ forall c'', c <> Ssequence c'' c2) _ _ _).
+  + intros.
+    destruct H as [? | [? ?]], H0 as [? | [? ?]]; try congruence.
+  + intros.
+    destruct (classic (exists c' : cmd, a = Ssequence c' c2)) as [[c' ?] | ?].
+    - exists c'; auto.
+    - exists c2; right.
+      pose proof not_ex_all_not _ _ H.
+      auto.
+  + intros.
+    apply I.
+Defined.
+
+Definition seq1P (c2: cmd): Ensemble (cmd * state) := fun cs => fst cs = c2 \/ exists c1, fst cs = Ssequence c1 c2.
+
+Lemma seq_step_spec: forall {Omega} c1 c2 s (cs: ProgState Omega _) h mcs,
+  step (Ssequence c1 c2, s) cs ->
+  cs h mcs ->
+   partial_Terminating_pred (seq1P c2) mcs.
+Proof.
+  intros.
+  remember (Ssequence c1 c2, s) as cs0 eqn:?H.
+  revert c1 c2 s H1 H0; induction H; intros; try congruence.
+  + inversion H1; clear H1; subst.
+    destruct mcs as [| | [cc ss]]; try solve [simpl; auto].
+    Opaque RandomVarMap. simpl in H0. Transparent RandomVarMap.
+    rewrite RandomVarMap_sound in H0.
+    destruct H0 as [mcs [? ?]].
+    inversion H1; subst.
+    inversion H4; subst.
+    destruct a as [cc' ss']; simpl in *; subst.
+    right; simpl; eauto.
+  + inversion H1; subst.
+    Opaque unit_space_var. simpl in H0. Transparent unit_space_var.
+    apply unit_space_var_spec in H0.
+    destruct H0; subst.
+    left; auto.
+Qed.
+
+Lemma guarded_skip_access_is_no_guard: forall {O1 O2: RandomVarDomain} (src: ProgState O1 (cmd * state)) (dst: ProgState O2 (cmd * state)), guarded_omega_access Sskip src dst <-> omega_access src dst.
+Proof.
+  intros.
+  split; intros; [destruct H as [l [? [? ?]]]; exists l; auto |].
+  destruct H as [l [? ?]].
+  exists l; split; [| split]; auto.
+  intros n h ? [ss ?].
+  pose proof step_sound l (S n) h H1.
+  inversion H3; subst.
+  pose proof PrFamily.rf_partial_functionality _ _ (trace_states l (S n)) _ _ _ H2 sound1.
+  inversion H4; subst cs1; clear H4.
+  inversion step_fact.
+Qed.
+
+Lemma guarded_seq_const_access: forall {O1 O2: RandomVarDomain} (c1 c2: cmd) (src: ProgState O1 state) dst' ,
+  guarded_omega_access c2 (ProgState_pair_left (Ssequence c1 c2) src) dst' ->
+  cmd_skip_or_else c2 dst' ->
+  exists (dst: ProgState O2 state), 
+  dst' = ProgState_pair_left c2 dst /\
   omega_access
    (ProgState_pair_left c1 src)
    (ProgState_pair_left Sskip dst).
-Admitted.
+Proof.
+  intros.
+  destruct H as [[Omegas l dir ?H] [? [? ?]]]; simpl in *.
+  assert (forall n h, (dir n) h -> ~ (exists sigma : state, (l n) h (Terminating (cmd * state) (c2, sigma)))) as HH.
+  Focus 1. {
+    destruct n; auto.
+    intros ? ? [ss ?].
+    rewrite (H2 _ _) in H5.
+    rewrite RandomVarMap_sound in H5.
+    destruct H5 as [ms [? ?]].
+    inversion H6; subst; simpl; auto.
+    inversion H9.
+    apply (cmd_not_rec c1 c2); auto.
+  } Unfocus.
+  assert (forall n h mcs, l n h mcs -> partial_Terminating_pred (seq1P c2) mcs) as HH0.
+  Focus 1. {
+    induction n.
+    + intros.
+      rewrite (H2 _ _) in H4.
+      rewrite RandomVarMap_sound in H4.
+      destruct H4 as [ms [? ?]].
+      inversion H5; subst; simpl; auto.
+      inversion H6; subst.
+      right; exists c1; auto.
+    + intros.
+      destruct (rdir_slow l dir n h).
+      - destruct H5 as [h' [? ?]].
+        pose proof H n _ H6.
+        destruct H7.
+        destruct cs1 as [cc1 ss1].
+        pose proof IHn _ _ sound1.
+        simpl in H7.
+        destruct H7.
+        * simpl in H7; subst cc1.
+          exfalso; apply (HH _ _ H6).
+          eauto.
+        * destruct H7 as [cc1' ?]; simpl in H7; subst cc1.
+          destruct (prefix_history_app_exists _ _ H5) as [h'' ?]; subst h.
+          rewrite (sound2 h'' mcs) in H4; clear sound2.
+          clear - step_fact H4.
+          apply (seq_step_spec cc1' c2  _  _ h'' mcs step_fact H4).
+      - rewrite <- (H5 _) in H4.
+        eapply IHn; eauto.
+  } Unfocus.
+  pose (lmap_states (@LeftF_MFun' _ state _ (seq1_MFun c2)) l) as l'.
+  pose (lmap_dir (@LeftF_MFun' _ state _ (seq1_MFun c2)) dir) as dir'.
+  assert (forall n, global_step (dir' n) (l' n) (l' (S n))) as HH1.
+  Focus 1. {
+    intros.
+    intros h ?.
+    assert (dir n h) by auto.
+    pose proof H n h H5.
+    destruct H6.
+    destruct (rf_complete _ _ (@LeftF_MFun' _ state _ (seq1_MFun c2)) cs1) as [cs1' ?].
+    assert (sound1': l' n h (Terminating _ cs1')).
+    Focus 1. {
+      subst l'.
+      Opaque RandomVarMap. simpl. Transparent RandomVarMap.
+      rewrite RandomVarMap_sound; exists (Terminating _ cs1); split; auto.
+      constructor; auto.
+    } Unfocus.
+    pose (cs2' := ProgState_lift_mf (LeftF_MFun' (seq1_MFun c2)) cs2).
+    assert (step_fact': Randomized.step cs1' cs2'). admit.
+    assert (sound2': forall h' mcs, l' (S n) (app_history h h') mcs <-> cs2' h' mcs). admit.
+    apply (Build_local_step h _ _ (l' n) (l' (S n)) cs1' _ cs2'); auto.
+  } Unfocus.
+  exists (ProgState_snd dst').
+  assert (dst' = ProgState_pair_left c2 (ProgState_snd dst')); [| split; auto].
+  Focus 1. {
+    ProgState_extensionality h mcs.
+    Opaque RandomVarMap. simpl. Transparent RandomVarMap.
+    rewrite !RV.Compose_assoc, RandomVarMap_sound, lift_mf_compose.
+    split.
+    + intros.
+      exists mcs; split; auto.
+      destruct mcs as [| | [cc ss]]; constructor.
+      specialize (H0 _ _ H4).
+      rewrite <- (H3 _ _) in H4.
+      pose proof partial_Terminating_pred_limit l dir _ HH0.
+      specialize (H5 _ _ H4).
+      clear - H5 H0.
+      simpl in *.
+      exists ss; split; auto.
+      destruct H0; [| subst; auto].
+      destruct H5; [subst; auto |].
+      destruct H0 as [c1 ?]; simpl in *.
+      congruence.
+    + intros [mcs' [? ?]].
+      inversion H5; subst; auto.
+      destruct a as [cc' ss'], b as [cc ss].
+      destruct H6 as [ss'' [? ?]].
+      simpl in H6; subst ss''.
+      inversion H7; subst ss' cc.
+      specialize (H0 _ _ H4).
+      pose proof H4.
+      rewrite <- (H3 _ _) in H4.
+      pose proof partial_Terminating_pred_limit l dir _ HH0.
+      specialize (H8 _ _ H4).
+      clear - H8 H6 H0.
+      simpl in *.
+      destruct H0; [| subst; auto].
+      destruct H8; [subst; auto |].
+      destruct H0 as [c1 ?]; simpl in *.
+      congruence.
+  } Unfocus.
+  Focus 1. {
+    exists (@Build_execution_trace normal_imp normal_sss Omegas l' dir' HH1).
+    split; simpl. admit. admit. (* subtle and true. *)
+  } Unfocus.
+Qed.
 
 Lemma guarded_skip_access: forall {O1 O2: RandomVarDomain} (c: cmd) (src: ProgState O1 state) (dst: ProgState O2 state),
   guarded_omega_access
     Sskip
-   (ProgState_pair_left (Ssequence Sskip c) src)
+   (ProgState_pair_left c src)
    (ProgState_pair_left Sskip dst) ->
   omega_access
    (ProgState_pair_left c src)
    (ProgState_pair_left Sskip dst).
-Admitted.
+Proof.
+  intros.
+  rewrite guarded_skip_access_is_no_guard in H; auto.
+Qed.
 
 Definition is_loop_global_state {Omega: RandomVarDomain} (b: expr) (c: cmd) (s: ProgState Omega state) (s': ProgState Omega (cmd * state)): Prop :=
   (forall h, s h (NonTerminating _) <-> s' h (NonTerminating _)) /\
@@ -82,15 +257,6 @@ Lemma guarded_loop: forall {O1 O2: RandomVarDomain} (b: expr) (c: cmd) (src: Pro
   omega_access (ProgState_pair_left (Sifthenelse b c Sskip) src) (ProgState_pair_left Sskip dst).
 Proof.
   intros.
-Admitted.
-
-Lemma cmd_skip_or_seq: forall {O1 O2: RandomVarDomain} (c1 c2: cmd) (src: ProgState O1 state) (dst': ProgState O2 (cmd * state)),
-  guarded_omega_access
-   (Ssequence Sskip c2)
-   (ProgState_pair_left (Ssequence c1 c2) src)
-   dst' ->
-  cmd_skip_or_else (Ssequence Sskip c2) dst' ->
-  exists dst, dst' = ProgState_pair_left (Ssequence Sskip c2) dst.
 Admitted.
 
 Lemma cmd_skip_or_loop: forall {O1 O2: RandomVarDomain} (b: expr) (c: cmd) (src: ProgState O1 state)(src': ProgState O1 (cmd * state)) (dst': ProgState O2 (cmd * state)),

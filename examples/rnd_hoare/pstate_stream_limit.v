@@ -575,3 +575,49 @@ Proof.
   + apply strict_conflict_conflict in H1.
     exact (@rand_consi _ _ (raw_anti_chain_legal (limit_domain Omegas)) _ _ H1 H H0).
 Qed.
+
+Lemma lift_map_limit: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {Omegas: RandomVarDomainStream} {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} (f: MeasurableFunction A B) (l: ProgStateStream Omegas A) (dir: ConvergeDir l),
+  limit (lmap_states f l) (lmap_dir f dir) = ProgState_lift_mf f (limit l dir).
+Proof.
+  intros.
+  ProgState_extensionality h mb.
+  Opaque RandomVarMap. simpl. Transparent RandomVarMap.
+  rewrite RandomVarMap_sound.
+  split; intros. 
+  + rewrite limit_spec in H.
+    destruct H as [[n [? ?]] | [? ?]].
+    - Opaque RandomVarMap. simpl in H. Transparent RandomVarMap.
+      rewrite RandomVarMap_sound in H.
+      destruct H as [ma [? ?]].
+      exists ma.
+      split; auto.
+      rewrite limit_spec.
+      left.
+      exists n; auto.
+    - exists (NonTerminating _); subst mb.
+      split; auto; [| constructor].
+      rewrite limit_spec; right.
+      split; auto.
+  + destruct H as [ma [? ?]].
+    rewrite @limit_spec in H |- *.
+    destruct H as [[n [? ?]] | [? ?]].
+    - left; exists n; split; auto.
+      Opaque RandomVarMap. simpl. Transparent RandomVarMap.
+      rewrite RandomVarMap_sound.
+      exists ma; split; auto.
+    - right.
+      subst ma; inversion H0; subst.
+      split; auto.
+Qed.
+
+Lemma partial_Terminating_pred_limit: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {Omegas: RandomVarDomainStream} {A: Type} {sA: SigmaAlgebra A} (l: ProgStateStream Omegas A) (dir: ConvergeDir l) P,
+  (forall n h mcs, (l n) h mcs -> partial_Terminating_pred P mcs) ->
+  (forall h mcs, limit l dir h mcs -> partial_Terminating_pred P mcs).
+Proof.
+  intros.
+  rewrite limit_spec in H0.
+  destruct H0.
+  + destruct H0 as [n [? ?]].
+    specialize (H _ _ _ H0); auto.
+  + destruct H0; subst; simpl; auto.
+Qed.

@@ -412,7 +412,7 @@ Lemma inf_history_construction: forall (P: RandomHistory -> Prop) (h0: RandomHis
   exists h, is_inf_history h /\ prefix_history h0 h /\ (forall m, m0 <= m -> P (fstn_history m h)).
 Proof.
 
-  admit.
+  admit. (* use choice axiom. *)
 Qed.
 
 End random_history.
@@ -686,7 +686,12 @@ Proof.
   + rewrite (app_history_spec_fin2 _ _ n); auto.
     omega.
 Qed.
-  
+
+Lemma prefix_history_app_exists {ora: RandomOracle}: forall h1 h2,
+  prefix_history h1 h2 ->
+  exists h3, h2 = app_history h1 h3.
+Proof.
+Admitted.
 
 (*
 Lemma n_conflict_at_least_n_history1 {ora: RandomOracle}: forall n h1 h2,

@@ -77,6 +77,17 @@ Definition RandomVariable {HBSFo: HistoryBasedSigF ora} (Omega: RandomVarDomain)
 
 Global Identity Coercion RandomVariable_MeasurableFunction: RandomVariable >-> PrFamily.MeasurableFunction.
 
+Lemma RandomVariable_extensionality {HBSFo: HistoryBasedSigF ora} {Omega: RandomVarDomain} {A: Type} {SA: SigmaAlgebra A} (v1 v2: RandomVariable Omega A):
+  (forall h a, v1 h a <-> v2 h a) ->
+  v1 = v2.
+Proof. intros. apply PrFamily.MeasurableFunction_extensionality; auto. Qed.
+
+Tactic Notation "RandomVariable_extensionality" ident(x) ident(y) :=
+  match goal with
+    [ |- ?X = ?Y ] =>
+     apply RandomVariable_extensionality; intros x y
+  end.
+
 Definition MeasurableSubset {HBSFo: HistoryBasedSigF ora} (Omega: RandomVarDomain): Type := PrFamily.measurable_set Omega.
 
 Definition MeasurableSubset_HistoryAntiChain {HBSFo: HistoryBasedSigF ora} {Omega: RandomVarDomain} (P: MeasurableSubset Omega): HistoryAntiChain.
@@ -142,6 +153,13 @@ Proof.
     apply PrFamily.rf_sound in H0; auto.
 Qed.
 
+Lemma global_equiv_equal: forall {Omega} {A: Type} {SA: SigmaAlgebra A} (v1 v2: RandomVariable Omega A), RandomVar_global_equiv v1 v2 -> v1 = v2.
+Proof.
+  intros.
+  RandomVariable_extensionality h a.
+  apply H; auto.
+Qed.
+
 Lemma global_equiv_refl: forall {Omega} {A: Type} {SA: SigmaAlgebra A} (v: RandomVariable Omega A), RandomVar_global_equiv v v.
 Proof.
   intros.
@@ -172,6 +190,17 @@ Definition unit_space_domain: RandomVarDomain :=
 Definition constant_var (Omega: RandomVarDomain) {A: Type} (v: A) {SA: SigmaAlgebra A}: RandomVariable Omega A := PrFamily.MeasurableFunction_inv (ConstantFunction v).
 
 Definition unit_space_var {A: Type} (v: A) {SA: SigmaAlgebra A}: RandomVariable unit_space_domain A := constant_var _ v.
+
+Lemma unit_space_var_spec: forall {A: Type} (v v0: A) {SA: SigmaAlgebra A} h,  unit_space_var v h v0 -> h = empty_history /\ v0 = v.
+Proof.
+  intros.
+  simpl in H.
+  destruct H as [[? ?] [? ?]].
+  split; auto.
+  simpl in H.
+  subst.
+  symmetry; history_extensionality n; auto.
+Qed.
 
 Definition RandomVarMap {Omega: RandomVarDomain} {A B: Type} {SA: SigmaAlgebra A} {SB: SigmaAlgebra B} (f: MeasurableFunction A B) (v: RandomVariable Omega A): RandomVariable Omega B := PrFamily.Compose f v.
 
@@ -252,6 +281,9 @@ Proof. intros. apply PrFamily.Intersection_spec. Qed.
 Lemma Union_spec: forall {Omega: RandomVarDomain} (A B: MeasurableSubset Omega) (h: RandomHistory), (PrFamily.Union_MSet A B: MeasurableSubset Omega) h <-> A h \/ B h.
 Proof. intros. apply PrFamily.Union_spec. Qed.
 
+Lemma Compose_assoc: forall {Omega: RandomVarDomain} {B C D: Type} {SB: SigmaAlgebra B} {SC: SigmaAlgebra C} {SD: SigmaAlgebra D} (h: MeasurableFunction C D) (g: MeasurableFunction B C) (f: RandomVariable Omega B), RandomVarMap h (RandomVarMap g f) = RandomVarMap (Compose h g) f.
+Proof. intros; apply PrFamily.Compose_assoc. Qed.
+
 End RV.
 
 End RV.
@@ -260,6 +292,12 @@ Tactic Notation "RandomVarDomain_extensionality" ident(x) :=
   match goal with
     [ |- ?X = ?Y ] =>
      apply RandomVarDomain_extensionality; intro x
+  end.
+
+Tactic Notation "RandomVariable_extensionality" ident(x) ident(y) :=
+  match goal with
+    [ |- ?X = ?Y ] =>
+     apply RandomVariable_extensionality; intros x y
   end.
 
 

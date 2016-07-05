@@ -272,4 +272,31 @@ Proof.
     apply (PrFamily.rf_sound _ _ (l n) h s) in H0; auto.
 Qed.
 
+Definition lmap_states {Omegas: RandomVarDomainStream} {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} (f: MeasurableFunction A B) (l: ProgStateStream Omegas A): ProgStateStream Omegas B :=
+  fun n => (ProgState_lift_mf f (l n)).
+
+Definition lmap_dir {Omegas: RandomVarDomainStream} {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} (f: MeasurableFunction A B) {l: ProgStateStream Omegas A} (dir: ConvergeDir l): ConvergeDir (lmap_states f l).
+  refine (Build_ConvergeDir _ _ _ _ (fun n => dir n) _ _).
+  + apply rdir_forward.
+  + intros.
+    destruct (rdir_slow l dir n h); auto.
+    right.
+    Opaque RandomVarMap.
+    hnf; intros [| | b]; split; intros; simpl in H0 |- *; rewrite @RandomVarMap_sound in H0 |- *;
+    destruct H0 as [a [? ?]]; exists a.
+    Transparent RandomVarMap.
+    - split; auto.
+      rewrite (H a) in H0; auto.
+    - split; auto.
+      rewrite (H a); auto.
+    - split; auto.
+      rewrite (H a) in H0; auto.
+    - split; auto.
+      rewrite (H a); auto.
+    - split; auto.
+      rewrite (H a) in H0; auto.
+    - split; auto.
+      rewrite (H a); auto.
+Defined.
+
 End Stream.
