@@ -34,11 +34,12 @@ Class SmallStepSemantics {imp: Imperative} : Type := {
   ora: RandomOracle;
   SFo: SigmaAlgebraFamily RandomHistory;
   HBSFo: HistoryBasedSigF ora;
+  PrF: ProbabilityMeasureFamily RandomHistory;
   eval_bool: expr -> @MeasurableFunction state bool _ (max_sigma_alg _);
   atomic_step: forall c: acmd, state -> forall {Omega: RandomVarDomain}, ProgState Omega state -> Prop
 }.
 
-Existing Instances state_sig cmd_state_sig ora SFo HBSFo.
+Existing Instances state_sig cmd_state_sig ora SFo HBSFo PrF.
 
 Inductive step {imp: Imperative} {sss: SmallStepSemantics}: cmd * state -> forall {Omega: RandomVarDomain}, ProgState Omega (cmd * state)%type -> Prop :=
   | step_atomic: forall (ac: acmd) (s: state) (Omega: RandomVarDomain) (cs: ProgState Omega state),

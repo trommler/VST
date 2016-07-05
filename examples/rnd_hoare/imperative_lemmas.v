@@ -250,20 +250,15 @@ Definition is_loop_global_state {Omega: RandomVarDomain} (b: expr) (c: cmd) (s: 
   (forall h a, s h (Terminating _ a) <-> s' h (Terminating _ (Sskip, a)) \/ s' h (Terminating _ (Swhile b c, a))) /\
   (forall h a, s' h (Terminating _ (Sskip, a)) -> eval_bool b a false).
 
-Lemma guarded_loop: forall {O1 O2: RandomVarDomain} (b: expr) (c: cmd) (src: ProgState O1 state) (dst: ProgState O2 state) (src': ProgState O1 (cmd * state)) (dst': ProgState O2 (cmd * state)),
+Lemma guarded_loop: forall {O1 O2: RandomVarDomain} (b: expr) (c: cmd) (src: ProgState O1 state) (src': ProgState O1 (cmd * state)) (dst': ProgState O2 (cmd * state)),
   is_loop_global_state b c src src' ->
-  is_loop_global_state b c dst dst' ->
+  cmd_skip_or_else (Swhile b c) dst' ->
   guarded_omega_access (Swhile b c) src' dst' ->
+  exists dst,
+  is_loop_global_state b c dst dst' /\
   omega_access (ProgState_pair_left (Sifthenelse b c Sskip) src) (ProgState_pair_left Sskip dst).
 Proof.
   intros.
-Admitted.
-
-Lemma cmd_skip_or_loop: forall {O1 O2: RandomVarDomain} (b: expr) (c: cmd) (src: ProgState O1 state)(src': ProgState O1 (cmd * state)) (dst': ProgState O2 (cmd * state)),
-  is_loop_global_state b c src src' ->
-  guarded_omega_access (Swhile b c) src' dst' ->
-  cmd_skip_or_else (Swhile b c) dst' ->
-  exists dst, is_loop_global_state b c dst dst'.
 Admitted.
 
 End NormalImpLemma.
@@ -351,3 +346,33 @@ Proof.
 Qed.
 
 End SubTrace.
+
+Section SequenceAux.
+
+Context {Nimp: Normal.Imperative} {Nsss: Normal.SmallStepSemantics}.
+
+Lemma seq_aux: forall O1 O3 c1 c2 (s1: ProgState O1 _) (s3: ProgState O3 _),
+  omega_access (ProgState_pair_left (Ssequence c1 c2) s1) (ProgState_pair_left Sskip s3) ->
+  exists O2 (s2: ProgState O2 _),
+  omega_access (ProgState_pair_left c1 s1) (ProgState_pair_left Sskip s2) /\
+  omega_access (ProgState_pair_left c2 s2) (ProgState_pair_left Sskip s3).
+Admitted.
+
+End SequenceAux.
+
+Section WhileAux.
+
+Context {Nimp: Normal.Imperative} {Nsss: Normal.SmallStepSemantics}.
+
+Import Normal.
+
+Lemma while_aux: forall Os Od b c (src: ProgState Os state) (dst: ProgState Od state),
+  omega_access (ProgState_pair_left (Swhile b c) src) (ProgState_pair_left Sskip dst) ->
+  exists Omegas (l: ProgStateStream Omegas state) (dir: ConvergeDir l),
+  (forall n, omega_access (ProgState_pair_left (Sifthenelse b c Sskip) (l n)) (ProgState_pair_left Sskip (l (S n)))) /\
+  RandomVar_global_equiv (l 0) src /\
+  RandomVar_global_equiv (limit l dir) dst.
+Admitted.
+
+End WhileAux.
+

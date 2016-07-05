@@ -12,6 +12,7 @@ Require Import RndHoare.pstate_stream_limit.
 Require Import RndHoare.probabilistic_pred.
 Require Import RndHoare.imperative.
 Require Import RndHoare.normal_imperative.
+Require Import RndHoare.imperative_lemmas.
 Import Randomized.
 
 Module HyperHoare.
@@ -65,25 +66,42 @@ Proof.
   auto.
 Qed.
 
-(*
-Lemma Sequence: forall P Q R c1 c2, triple P c1 Q -> triple Q c2 R -> triple P (Ssequence c1 c2) R.
+Lemma SequenceRule: forall Gamma {sG: SigmaAlgebras Gamma} P Q R c1 c2, triple Gamma P c1 Q -> triple Gamma Q c2 R -> triple Gamma P (Ssequence c1 c2) R.
 Proof.
-  intros ? ? ? ? ? TRIPLE1 TRIPLE2.
+  intros ? ? ? ? ? ? ? TRIPLE1 TRIPLE2.
   unfold triple in *; intros.
-  destruct H0 as [path [? ?]].
-Abort.
-*)
+  pose proof seq_aux _ _ _ _ _ _ H0.
+  destruct H1 as [O3 [s3 [? ?]]].
+  specialize (TRIPLE1 _ _ _ H _ _ H1).
+  specialize (TRIPLE2 _ _ _ TRIPLE1 _ _ H2).
+  change ((raw_state O3 state s3,
+              _post_prod (oaccess_forward c1 s1 s3 H1)
+                (oaccess_same_covered c1 s1 s3 H1)
+                (snd (raw_state o1 state s1, gamma)))) with
+     (post_prod (oaccess_forward c1 s1 s3 H1)
+              (oaccess_same_covered c1 s1 s3 H1) (raw_state O3 state s3)
+              (raw_state o1 state s1, gamma)) in TRIPLE2.
+  rewrite post_prod_post_prod in TRIPLE2.
+  match goal with
+  | TRIPLE2: post_prod ?HF ?HS _ _ |== _ |- post_prod ?HF' ?HS' _ _ |== _ =>
+    replace HF' with HF by (apply proof_irrelevance);
+    replace HS' with HS by (apply proof_irrelevance);
+    auto
+  end.
+Qed.
+
 End HyperHoareSound.
 
 End HyperHoare.
 
-Module PartialrHoare.
+Module PartialHoare.
 
 Section PartialHoareSound.
 
 Context {Nimp: Normal.Imperative} {Nsss: Normal.SmallStepSemantics}.
 
-Import PlainAssertion.
+Import PlainAssertion Normal.
+Local Open Scope logic.
 
 Lemma ConsequenceRule: forall Gamma {sG: SigmaAlgebras Gamma} P P' Q Q' c, valid Gamma (imp P' P) -> valid Gamma (imp Q Q') -> partial_triple Gamma P c Q -> partial_triple Gamma P' c Q'.
 Proof.
@@ -94,6 +112,46 @@ Proof.
   + auto.
 Qed.
 
+Lemma SequenceRule: forall Gamma {sG: SigmaAlgebras Gamma} P Q R c1 c2, partial_triple Gamma P c1 Q -> partial_triple Gamma Q c2 R -> partial_triple Gamma P (Ssequence c1 c2) R.
+Proof.
+  intros.
+  eapply HyperHoare.SequenceRule; eauto.
+Qed.
+
+Lemma WhileRule: forall Gamma {sG: SigmaAlgebras Gamma} {U} P (D: value state Gamma U) b c,
+  (forall u: U, partial_triple Gamma (P && (lift1 (eq u) D)) (Sifthenelse b c Sskip) P) ->
+  partial_triple Gamma P (Swhile b c) (P && (lift1 (eq 1%R) (Pr (rv_event (Trivial_MSet (eq false)) (bool_exp (eval_bool b)))))).
+Proof.
+  intros.
+Admitted.
+
 End PartialHoareSound.
 
-End PartialrHoare.
+End PartialHoare.
+
+Module TotalHoare.
+
+Section TotalHoareSound.
+
+Context {Nimp: Normal.Imperative} {Nsss: Normal.SmallStepSemantics}.
+
+Import PlainAssertion.
+
+Lemma ConsequenceRule: forall Gamma {sG: SigmaAlgebras Gamma} P P' Q Q' c, valid Gamma (imp P' P) -> valid Gamma (imp Q Q') -> total_triple Gamma P c Q -> total_triple Gamma P' c Q'.
+Proof.
+  intros.
+  eapply HyperHoare.ConsequenceRule.
+  + apply TotalMetaAssertion_imp; eauto.
+  + apply TotalMetaAssertion_imp; eauto.
+  + auto.
+Qed.
+
+Lemma SequenceRule: forall Gamma {sG: SigmaAlgebras Gamma} P Q R c1 c2, total_triple Gamma P c1 Q -> total_triple Gamma Q c2 R -> total_triple Gamma P (Ssequence c1 c2) R.
+Proof.
+  intros.
+  eapply HyperHoare.SequenceRule; eauto.
+Qed.
+
+End TotalHoareSound.
+
+End TotalHoare.

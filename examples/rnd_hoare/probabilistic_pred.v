@@ -79,6 +79,37 @@ Definition _post_prod {Omega Omega': RandomVarDomain} (Hf: future_anti_chain Ome
 Definition post_prod {Omega Omega': RandomVarDomain} (Hf: future_anti_chain Omega Omega') (Hs: same_covered_anti_chain Omega Omega') {A0: Type} {sA0: SigmaAlgebra A0} (a': RandomVariable Omega' A0) {As: list Type} {sAs: SigmaAlgebras As} (rho: RVProdType Omega A0 As): RVProdType Omega' A0 As :=
   (a', _post_prod Hf Hs (snd rho)).
 
+Lemma post_prod_post_prod: forall {Omega Omega' Omega'': RandomVarDomain} (Hf: future_anti_chain Omega Omega') (Hs: same_covered_anti_chain Omega Omega') (Hf': future_anti_chain Omega' Omega'') (Hs': same_covered_anti_chain Omega' Omega'') {A0: Type} {sA0: SigmaAlgebra A0} (a': RandomVariable Omega' A0) (a'': RandomVariable Omega'' A0) {As: list Type} {sAs: SigmaAlgebras As} (rho: RVProdType Omega A0 As),
+  post_prod Hf' Hs' a'' (post_prod Hf Hs a' rho) = post_prod (future_anti_chain_trans _ _ _ Hf Hf') (Equivalence_Transitive _ _ _ Hs Hs') a'' rho.
+Proof.
+  intros until a''.
+  induction As; intros.
+  + simpl.
+    constructor; auto.
+  + specialize (IHAs (tail_SigmaAlgebra a As) (fst rho, fst (snd rho))).
+    inversion IHAs.
+    unfold post_prod; f_equal.
+    simpl.
+    rewrite H0.
+    f_equal; auto.
+    simpl.
+    RandomVariable_extensionality h s.
+    simpl.
+    split; intros.
+    - destruct H as [? [h' [? [? [h'' [? ?]]]]]].
+      split; auto.
+      exists h''; split; auto.
+      eapply prefix_history_trans; eauto.
+    - destruct H as [? [h'' [? ?]]].
+      destruct (Hf' _ H) as [h' [? ?]].
+      pose proof proj_in_anti_chain_unique Omega h'' h' h H1 H3.
+      split; auto.
+      exists h'; split; [| split]; auto.
+      exists h''; split; auto.
+      apply H5; [| apply PrFamily.rf_sound in H2; auto].
+      apply Hf; auto.
+Qed.
+
 Definition _is_filter_prod {Omega Omega': RandomVarDomain}: forall {As: list Type} {sAs: SigmaAlgebras As} (rho: _RVProdType Omega As) (rho': _RVProdType Omega' As), Prop :=
   fix IFP (As: list Type): forall (sAs: SigmaAlgebras As) (rho: _RVProdType Omega As) (rho': _RVProdType Omega' As), Prop :=
     match As as As_PAT
@@ -99,6 +130,8 @@ Module Type ASSERTION.
 Parameter random_value: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} (A0: Type) {sA0: SigmaAlgebra A0} (As: list Type) {sAs: SigmaAlgebras As} (t: Type) {sT: SigmaAlgebra t}, Type.
 
 Parameter local_eval: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As} {t: Type} {sT: SigmaAlgebra t} {Omega: RandomVarDomain} (rho: RVProdType Omega A0 As) (X: random_value A0 As t), PrFamily.MeasurableFunction Omega t.
+
+Parameter bool_exp: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As} (e: @MeasurableFunction A0 bool _ (max_sigma_alg _)), @random_value _ _ _ A0 _ As _ bool (max_sigma_alg _).
 
 Parameter event: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} (A0: Type) {sA0: SigmaAlgebra A0} (As: list Type) {sAs: SigmaAlgebras As}, Type.
 
@@ -152,7 +185,9 @@ Section ASSERTION.
 
 Context {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As}.
 
-Axiom rv_event_spec: forall {t: Type} {sT: SigmaAlgebra t} {Omega} (rho: RVProdType Omega A0 As) (h: RandomHistory) (T': measurable_set t) (X: random_value A0 As t), local_satisfy rho (rv_event T' X) = PrFamily.PreImage_MSet (local_eval rho X) T'.
+Axiom bool_exp_spec: forall {Omega} (rho: RVProdType Omega A0 As) (e: @MeasurableFunction A0 bool _ (max_sigma_alg _)), local_eval rho (bool_exp e) = PrFamily.Compose e (fst rho).
+
+Axiom rv_event_spec: forall {t: Type} {sT: SigmaAlgebra t} {Omega} (rho: RVProdType Omega A0 As) (T': measurable_set t) (X: random_value A0 As t), local_satisfy rho (rv_event T' X) = PrFamily.PreImage_MSet (local_eval rho X) T'.
 
 Axiom Pr_spec: forall {PrF: ProbabilityMeasureFamily RandomHistory} {Omega} (rho: RVProdType Omega A0 As) (A: event A0 As), eval rho (Pr A) = PrFamily.Probability (local_satisfy rho A).
 
@@ -202,6 +237,8 @@ Context {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As
 
 Definition local_eval {t: Type} {sT: SigmaAlgebra t} {Omega: RandomVarDomain} (rho: RVProdType Omega A0 As) (X: random_value A0 As t): PrFamily.MeasurableFunction Omega t := X Omega rho.
 
+Definition bool_exp (e: @MeasurableFunction A0 bool _ (max_sigma_alg _)): @random_value A0 _ As _ bool (max_sigma_alg _) := fun Omega rho => PrFamily.Compose e (fst rho).
+
 Definition local_satisfy {Omega: RandomVarDomain} (rho: RVProdType Omega A0 As) (A: event A0 As): PrFamily.measurable_set Omega := A Omega rho.
 
 Definition rv_event {t: Type} {sT: SigmaAlgebra t} (T': measurable_set t) (X: random_value A0 As t): event A0 As := fun Omega rho => PrFamily.PreImage_MSet (X Omega rho) T'.
@@ -250,7 +287,10 @@ Infix "-->" := imp (at level 55, right associativity) : logic.
 Notation "rho |== P" := (satisfy rho P) (at level 60, no associativity) : logic.
 Local Open Scope logic.
 
-Lemma rv_event_spec: forall {t: Type} {sT: SigmaAlgebra t} {Omega} (rho: RVProdType Omega A0 As) (h: RandomHistory) (T': measurable_set t) (X: random_value A0 As t), local_satisfy rho (rv_event T' X) = PrFamily.PreImage_MSet (local_eval rho X) T'.
+Lemma bool_exp_spec: forall {Omega} (rho: RVProdType Omega A0 As) (e: @MeasurableFunction A0 bool _ (max_sigma_alg _)), local_eval rho (bool_exp e) = PrFamily.Compose e (fst rho).
+Proof. intros. reflexivity. Qed.
+
+Lemma rv_event_spec: forall {t: Type} {sT: SigmaAlgebra t} {Omega} (rho: RVProdType Omega A0 As) (T': measurable_set t) (X: random_value A0 As t), local_satisfy rho (rv_event T' X) = PrFamily.PreImage_MSet (local_eval rho X) T'.
 Proof. intros. reflexivity. Qed.
 
 Lemma Pr_spec: forall {PrF: ProbabilityMeasureFamily RandomHistory} {Omega} (rho: RVProdType Omega A0 As) (A: event A0 As), eval rho (Pr A) = PrFamily.Probability (local_satisfy rho A).

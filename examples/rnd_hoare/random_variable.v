@@ -249,7 +249,7 @@ Definition post_dom_var (O1 O2: RandomVarDomain) (Hf: future_anti_chain O1 O2) (
       * apply same_covered_future_anti_chain_subset1 with O1; auto.
         intros ? [? ?]; auto.
       * apply (PrFamily.rf_preserve _ _ f).
-Qed.
+Defined.
 
 Definition is_filter_var {Omega Omega': RandomVarDomain} {A: Type} {sA: SigmaAlgebra A} (v: RandomVariable Omega A) (v': RandomVariable Omega' A) :=
   forall h, Omega' h -> RandomVar_local_equiv v v' h h.
