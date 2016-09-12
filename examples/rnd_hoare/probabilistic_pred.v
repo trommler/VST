@@ -145,6 +145,8 @@ Parameter eval: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistor
 
 Parameter Pr: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As} {PrF: ProbabilityMeasureFamily RandomHistory} (A: event A0 As), value A0 As R.
 
+Parameter Const: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As} {t: Type} (v: t), value A0 As t.
+
 Parameter assertion: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} (A0: Type) {sA0: SigmaAlgebra A0} (As: list Type) {sAs: SigmaAlgebras As}, Type.
 
 Parameter satisfy: forall {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {A0: Type} {sA0: SigmaAlgebra A0} {As: list Type} {sAs: SigmaAlgebras As} {Omega: RandomVarDomain} (rho: RVProdType Omega A0 As) (P: assertion A0 As), Prop.
@@ -190,6 +192,8 @@ Axiom bool_exp_spec: forall {Omega} (rho: RVProdType Omega A0 As) (e: @Measurabl
 Axiom rv_event_spec: forall {t: Type} {sT: SigmaAlgebra t} {Omega} (rho: RVProdType Omega A0 As) (T': measurable_set t) (X: random_value A0 As t), local_satisfy rho (rv_event T' X) = PrFamily.PreImage_MSet (local_eval rho X) T'.
 
 Axiom Pr_spec: forall {PrF: ProbabilityMeasureFamily RandomHistory} {Omega} (rho: RVProdType Omega A0 As) (A: event A0 As), eval rho (Pr A) = PrFamily.Probability (local_satisfy rho A).
+
+Axiom Const_spec: forall {t: Type} {Omega} (rho: RVProdType Omega A0 As) (v: t), eval rho (Const v) = v.
 
 Axiom lift1_spec: forall {t: Type} {Omega} (rho: RVProdType Omega A0 As) (P: t -> Prop) (e: value A0 As t), rho |== lift1 P e <-> P (eval rho e).
 
@@ -247,6 +251,8 @@ Definition eval {t: Type} {Omega: RandomVarDomain} (rho: RVProdType Omega A0 As)
 
 Definition Pr {PrF: ProbabilityMeasureFamily RandomHistory} (A: event A0 As): value A0 As R := fun Omega rho => PrFamily.Probability (A Omega rho).
 
+Definition Const {t: Type} (v: t): value A0 As t := fun _ _ => v.
+
 Definition satisfy {Omega: RandomVarDomain} (rho: RVProdType Omega A0 As) (P: assertion A0 As): Prop := P Omega rho.
 
 Definition lift1 {t: Type} (P: t -> Prop) (e: value A0 As t): assertion A0 As := fun Omega rho => P (e Omega rho).
@@ -294,6 +300,9 @@ Lemma rv_event_spec: forall {t: Type} {sT: SigmaAlgebra t} {Omega} (rho: RVProdT
 Proof. intros. reflexivity. Qed.
 
 Lemma Pr_spec: forall {PrF: ProbabilityMeasureFamily RandomHistory} {Omega} (rho: RVProdType Omega A0 As) (A: event A0 As), eval rho (Pr A) = PrFamily.Probability (local_satisfy rho A).
+Proof. intros. reflexivity. Qed.
+
+Lemma Const_spec: forall {t: Type} {Omega} (rho: RVProdType Omega A0 As) (v: t), eval rho (Const v) = v.
 Proof. intros. reflexivity. Qed.
 
 Lemma lift1_spec: forall {t: Type} {Omega} (rho: RVProdType Omega A0 As) (P: t -> Prop) (e: value A0 As t), rho |== lift1 P e <-> P (eval rho e).

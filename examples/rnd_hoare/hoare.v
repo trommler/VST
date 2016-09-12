@@ -118,13 +118,6 @@ Proof.
   eapply HyperHoare.SequenceRule; eauto.
 Qed.
 
-Lemma WhileRule: forall Gamma {sG: SigmaAlgebras Gamma} {U} P (D: value state Gamma U) b c,
-  (forall u: U, partial_triple Gamma (P && (lift1 (eq u) D)) (Sifthenelse b c Sskip) P) ->
-  partial_triple Gamma P (Swhile b c) (P && (lift1 (eq 1%R) (Pr (rv_event (Trivial_MSet (eq false)) (bool_exp (eval_bool b)))))).
-Proof.
-  intros.
-Admitted.
-
 End PartialHoareSound.
 
 End PartialHoare.
