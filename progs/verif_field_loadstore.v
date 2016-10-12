@@ -6,92 +6,70 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Local Open Scope logic.
 
-Lemma Znth_map: forall {A B} n xs d (f: A -> B),
-  Znth n (map f xs) (f d) = f (Znth n xs d).
-Proof.
-  intros.
-  unfold Znth.
-  if_tac.
-  + reflexivity.
-  + apply map_nth.
-Qed.
+Definition ToyType := Tstruct _ToyType noattr.
+Definition ToyType2 := Tstruct _ToyType2 noattr.
 
-Lemma legal_Znth_map: forall {A B} n xs dA dB (f: A -> B),
-  0 <= n < Zlength xs ->
-  Znth n (map f xs) dB = f (Znth n xs dA).
-Proof.
-  intros.
-  unfold Znth.
-  if_tac.
-  + omega.
-  + apply nth_map'.
-    rewrite Zlength_correct in H.
-    destruct H.
-    apply Z2Nat.inj_lt in H1; [ | omega | omega].
-    rewrite Nat2Z.id in H1.
-    exact H1. 
-Qed.
-
-Definition t_struct_b := Tstruct _b noattr.
-
-Definition sub_spec (sub_id: ident) :=
- DECLARE sub_id
-  WITH v : val * list (val*val) , p: val
+Definition toy_sub_spec :=
+ DECLARE _toy_sub
+  WITH n: int, m: int, other: list (val * val) , p: val
   PRE  [] 
-        PROP  (is_int I8 Signed (snd (nth 1%nat (snd v) (Vundef, Vundef))))
+        PROP  ()
         LOCAL (gvar _p p)
-        SEP   (data_at Ews t_struct_b v p)
+        SEP   (data_at Ews ToyType ((Vint n, Vint m), other) p)
   POST [ tint ]
         PROP() LOCAL()
-        SEP(data_at Ews t_struct_b (snd (nth 1%nat (snd v) (Vundef, Vundef)), snd v) p).
+        SEP(data_at Ews ToyType ((Vint (Int.add m Int.one), Vint m), other) p).
 
-Definition sub_spec' (sub_id: ident) :=
- DECLARE sub_id
-  WITH v : reptype t_struct_b, p: val
+Definition toy_sub2_spec :=
+ DECLARE _toy_sub
+  WITH n: val, m: val, l0: val, l1: val, l2: val, l3: val, q: val
   PRE  [] 
-        PROP  (is_int I8 Signed (proj_reptype _ (DOT _y2 SUB 1 DOT _x2) v))
-        LOCAL (gvar _p p)
-        SEP   (data_at Ews t_struct_b v p)
+        PROP  (is_int I32 Signed n; is_int I32 Signed m;
+               is_int I32 Signed l2; is_int I32 Signed l3)
+        LOCAL (gvar _q q)
+        SEP   (data_at Ews ToyType2 ((n, m), (l0 :: l1 :: l2 :: l3 :: nil)) q)
   POST [ tint ]
         PROP() LOCAL()
-        SEP(data_at Ews t_struct_b 
-           (upd_reptype t_struct_b (DOT _y1) v 
-             (proj_reptype t_struct_b (StructField _x2 :: ArraySubsc 1 :: StructField _y2 :: nil) v))
-           p).
-
-Lemma spec_coincide: sub_spec' = sub_spec.
-Proof.
-(*reflexivity.*)
-Abort.
+        SEP(data_at Ews ToyType2 ((l2, l3), (m :: n :: Vint Int.zero :: Vint Int.zero :: nil)) q).
 
 Definition Gprog : funspecs := augment_funspecs prog [ 
-    sub_spec _sub1; sub_spec _sub2; sub_spec _sub3].
+  toy_sub_spec; toy_sub2_spec].
 
-Lemma body_sub1:  semax_body Vprog Gprog f_sub1 (sub_spec _sub1).
+Lemma body_toy_sub:  semax_body Vprog Gprog f_toy_sub toy_sub_spec.
 Proof.
-  unfold sub_spec.
+  unfold toy_sub_spec;
   start_function.
   forward.
   forward.
   forward.
 Qed.
 
-Lemma body_sub2:  semax_body Vprog Gprog f_sub2 (sub_spec _sub2).
+Lemma body_toy_sub2:  semax_body Vprog Gprog f_toy_sub2 toy_sub2_spec.
 Proof.
-  unfold sub_spec.
+  unfold toy_sub2_spec;
   start_function.
   forward.
   forward.
   forward.
+    rewrite sem_cast_neutral_int by eauto; simpl.
+    unfold upd_Znth, sublist; simpl.
+    (* For most applications, program will load/store the nth element  *)
+    (* of an array, thus we keep upd_Znth and Znth folded in spec. So, *)
+    (* we unfold them manually here.                                   *)
+  forward.
+    rewrite sem_cast_neutral_int by eauto; simpl.
+    unfold upd_Znth, sublist; simpl.
+  forward.
+    unfold Znth; simpl.
+  forward.
+    unfold Znth; simpl.
+  forward.
+    rewrite sem_cast_neutral_int by eauto; simpl.
+  forward.
+    rewrite sem_cast_neutral_int by eauto; simpl.
+  forward.
+    unfold upd_Znth, sublist; simpl.
+  forward.
+    unfold upd_Znth, sublist; simpl.
+  forward.
 Qed.
-
-Lemma body_sub3:  semax_body Vprog Gprog f_sub3 (sub_spec _sub3).
-Proof.
-  unfold sub_spec.
-  start_function.
-  forward.
-  forward.
-  forward.
-  forward.
-Qed.
-

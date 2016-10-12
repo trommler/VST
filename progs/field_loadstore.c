@@ -1,26 +1,30 @@
-struct a {double x1; char x2;};
-struct b {int y1; struct a y2[3];};
+struct IntPair {int a; int b; };
+struct ToyType {struct IntPair f1; struct IntPair f2[10]; };
+struct ToyType2 {struct IntPair g1; int g2[20]; };
 
-struct b p;
+struct ToyType p;
+struct ToyType2 q;
 
-void sub1(void) {
+void toy_sub(void) {
   int i;
-  i = p.y2[1].x2;
-  p.y1 = i;
+  i = p.f1.b;
+  p.f1.a = i + 1;
+  return;
 }
 
-void sub2(void) {
-  char i;
-  i = p.y2[1].x2;
-  p.y1 = i;
-}
-
-void sub3(void) {
-  char i;
-  int j;
-  i = p.y2[1].x2;
-  j = i;
-  p.y1 = j;
+void toy_sub2(void) {
+  int i, j;
+  i = q.g1.a;
+  j = q.g1.b;
+  q.g2[0] = j;
+  q.g2[1] = i;
+  i = q.g2[2];
+  j = q.g2[3];
+  q.g1.a = i;
+  q.g1.b = j;
+  q.g2[2] = 0;
+  q.g2[3] = 0;
+  return;
 }
 
 int main()

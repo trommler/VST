@@ -130,7 +130,7 @@ CONCUR_FILES= \
   threads_lemmas.v wf_lemmas.v \
   x86_inj.v x86_safe.v x86_context.v fineConc_x86.v executions.v SC_erasure.v \
   sync_preds_defs.v sync_preds.v \
-  semax_conc.v semax_to_juicy_machine.v \
+  semax_to_juicy_machine.v \
   semax_invariant.v semax_initial.v \
   semax_simlemmas.v cl_step_lemmas.v \
   semax_progress.v semax_preservation.v \
@@ -223,10 +223,8 @@ PROGS_FILES= \
   verif_float.v verif_ptr_compare.v \
   verif_nest3.v verif_nest2.v \
   logical_compare.v verif_logical_compare.v field_loadstore.v  verif_field_loadstore.v \
-  even.v verif_even.v odd.v verif_odd.v \
   merge.v verif_merge.v verif_append.v verif_append2.v bst.v verif_bst.v \
-  verif_bin_search.v incr.v verif_incr.v cond.v verif_cond.v
-# verif_message.v verif_dotprod.v verif_insertion_sort.v 
+  verif_bin_search.v
 
 SHA_FILES= \
   general_lemmas.v SHA256.v common_lemmas.v pure_lemmas.v sha_lemmas.v functional_prog.v \

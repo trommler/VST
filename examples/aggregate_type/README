@@ -7,7 +7,7 @@ Library), Verifiable C and some previous automation in VST.
   Two demo systems are dependent on CompCert 2.7 and MSL in VST. They are all deeloped in Coq8.5pl2.
 
 2. How to install
-2.1. VST can be downloaded from https://github.com/PrincetonUniversity/VST/.
+2.1. VST can be downloaded from https://github.com/PrincetonUniversity/VST/. (TODO: add a commit number here)
 2.2. The part of CompCert we use is already inside VST. Also, it can be downloaded from http://compcert.inria.fr/.
 2.3. Create a file CONFIGURE in the current folder with the following content.
         VST_DIR_DIR = [Your VST Directory]
@@ -125,3 +125,15 @@ about C semantics are all Coq Parameters and Coq Hypothesis in expr.v.
   floyd/forward.v
     - The proof automations provided to users. Though the majority of this file
       belongs to original VST.
+
+  Besides the development, progs/field_loadstore.c, progs/field_loadstore.v and
+  progs/verif_field_loadstore.v is a small example of our proof automation.
+  
+  progs/field_loadstore.c
+    - C programs.
+
+  progs/field_loadstore.v
+    - Clightgen generates this file from the .c file.
+
+  progs/verif_field_loadstore.v
+    - Specification of C programs and corresponding verifications.
