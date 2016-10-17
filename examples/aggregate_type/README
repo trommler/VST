@@ -7,12 +7,12 @@ Library), Verifiable C and some previous automation in VST.
   Two demo systems are dependent on CompCert 2.7 and MSL in VST. They are all deeloped in Coq8.5pl2.
 
 2. How to install
-2.1. VST can be downloaded from https://github.com/PrincetonUniversity/VST/. (TODO: add a commit number here)
+2.1. VST can be downloaded from https://github.com/PrincetonUniversity/VST/tree/ede863737ddcedd9d523f3fec1a3ba40f6317743. This is a github commit for this CPP submission.
 2.2. The part of CompCert we use is already inside VST. Also, it can be downloaded from http://compcert.inria.fr/.
 2.3. Create a file CONFIGURE in the current folder with the following content.
         VST_DIR_DIR = [Your VST Directory]
 2.4. Build VST.
-2.5. Run make.
+2.5. Run make in the current folder.
 
 3. Organization
 
