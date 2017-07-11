@@ -211,10 +211,10 @@ Proof.
   intros; simpl; rewrite invariant_super_non_expansive; auto.
 Qed.
 
-(*Definition SR_type' := ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ProdType
+Definition SR_type' := ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ProdType
   (ConstType (val * Z)) (DependentType 0)) (OrdType (DependentType 0)))
   (ProdType (PredType (DependentType 0)) (PredType (DependentType 0))))
-  Mpred) (ArrowType (ConstType Z) Mpred)) (ConstType (list Z))) (ArrowType (DependentType 0) Mpred))
+  Mpred) (ArrowType (ConstType Z) Mpred)) (ConstType (list Z))) Mpred) (ArrowType (DependentType 0) Mpred))
   (ArrowType (DependentType 0) Mpred).
 
 (* The GPS/iGPS store_rel rule is only really useful when we have a single writer, only write once
@@ -223,9 +223,9 @@ Qed.
    reachable, and partly to deal with the fact that the logic doesn't assume mo-coherence (which RA should
    supply) and thus a write may be placed "before" a write that's already been observed. This more relaxed
    rule can probably be proven from base Iris, but it would involve completely redoing the core GPS invariant. *)
-Program Definition store_rel_spec := TYPE SR_type'
+Program Definition store_rel_spec' := TYPE SR_type'
   WITH l : val, v : Z, s : _, st_ord : _ -> _ -> Prop, T : ((_ -> Z -> mpred) * (_ -> Z -> mpred)),
-       P : mpred, II : Z -> mpred, lI : list Z, Q' : _ -> mpred, Q : _ -> mpred
+       P : mpred, II : Z -> mpred, lI : list Z, P' : mpred, Q' : _ -> mpred, Q : _ -> mpred
   PRE [ 1%positive OF tptr tint, 2%positive OF tint ]
    PROP (repable_signed v;
          view_shift (fold_right sepcon emp (map II lI) * P)
@@ -246,20 +246,26 @@ Program Definition store_rel_spec := TYPE SR_type'
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as (((((((((?, ?), s), ?), (?, ?)), ?), ?), ?), ?), ?); simpl.
+  destruct x as ((((((((((?, ?), s), ?), (?, ?)), ?), ?), ?), ?), ?), ?); simpl.
   unfold PROPx; simpl; rewrite !approx_andp; f_equal.
   - rewrite !prop_and, !approx_andp; f_equal; f_equal; [|f_equal].
-    + rewrite !prop_forall, !(approx_allp _ _ _ s); apply f_equal; extensionality s'.
-      rewrite !prop_impl; setoid_rewrite approx_imp; do 2 apply f_equal.
-      rewrite view_shift_super_non_expansive.
+    + rewrite view_shift_super_non_expansive.
       setoid_rewrite view_shift_super_non_expansive at 2; do 2 apply f_equal; f_equal.
       * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
         erewrite !map_map, map_ext; eauto.
         intro; simpl; rewrite approx_idem; auto.
-      * rewrite !approx_sepcon, protocol_A_super_non_expansive; apply f_equal.
-        rewrite !approx_exp; apply f_equal; extensionality s''.
-        rewrite !approx_sepcon, !approx_andp, !approx_idem; auto.
+      * rewrite !approx_sepcon, protocol_A_super_non_expansive, approx_idem; auto.
     + rewrite !prop_forall, !(approx_allp _ _ _ s); apply f_equal; extensionality s'.
+      rewrite !prop_forall, !(approx_allp _ _ _ 0); apply f_equal; extensionality v'.
+      rewrite !prop_impl; setoid_rewrite approx_imp; do 2 apply f_equal.
+      setoid_rewrite approx_imp; do 2 apply f_equal.
+      rewrite view_shift_super_non_expansive.
+      setoid_rewrite view_shift_super_non_expansive at 2; do 2 apply f_equal; f_equal.
+      * rewrite !approx_sepcon, !approx_idem; auto.
+      * rewrite !approx_exp; apply f_equal; extensionality s''.
+        rewrite !approx_sepcon, !approx_andp, !approx_idem; auto.
+    + f_equal.
+      rewrite !prop_forall, !(approx_allp _ _ _ s); apply f_equal; extensionality s'.
       rewrite !prop_impl; setoid_rewrite approx_imp; do 2 apply f_equal.
       rewrite view_shift_super_non_expansive.
       setoid_rewrite view_shift_super_non_expansive at 2.
@@ -276,14 +282,14 @@ Qed.
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as (((((((((?, ?), ?), ?), ?), ?), ?), ?), ?), ?); simpl.
+  destruct x as ((((((((((?, ?), ?), ?), ?), ?), ?), ?), ?), ?), ?); simpl.
   rewrite !approx_exp; apply f_equal; extensionality s'.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
     rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
   rewrite !approx_sepcon_list'.
   erewrite !map_map, map_ext; eauto.
   intros; simpl; rewrite invariant_super_non_expansive; auto.
-Qed.*)
+Qed.
 
 Definition CRA_type := ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ProdType
   (ProdType (ProdType (ConstType (val * Z * Z)) (DependentType 0)) (OrdType (DependentType 0)))

@@ -255,7 +255,7 @@ Definition make_node_spec := DECLARE _make_node
 Definition writer_spec := DECLARE _writer
   WITH n : val, sh : share, v : Z, L : Z -> option (list Z), version : val, locs : list val, g : val
   PRE [ _n OF tptr tvoid ]
-    PROP (readable_share sh; isptr version; Forall isptr locs; Zlength locs = size)
+    PROP (readable_share sh; isptr version; Forall isptr locs; Zlength locs = size; repable_signed (v + 6))
     LOCAL (temp _n n)
     SEP (data_at sh tnode (version, locs) n; node_state gsh2 L v version locs g;
          invariant (EX L : Z -> option (list Z), ghost (gsh1, L) g))
@@ -879,6 +879,7 @@ Proof.
   start_function.
   rewrite data_at__eq; unfold default_val; simpl.
   repeat forward.
+  assert_PROP (0 <= v) by (unfold node_state; entailer!).
   forward_for_simple_bound 3 (EX i : Z, EX L' : _,
     PROP (L' = map_upd_list L (map (fun i => (v + 2 * (i + 1), repeat (i + 1) 8)%Z) (upto (Z.to_nat i))))
     LOCAL (lvar _data (tarray tint 8) data; temp _n n)
@@ -926,7 +927,8 @@ Ltac lookup_spec_and_change_compspecs CS id ::=
         fun (_ : Z -> option (list Z)) (_ : unit) => emp, fun _ : Z -> option (list Z) => emp,
         fun _ : Z => EX L : Z -> option (list Z), ghost (gsh1, L) g, [0]).
       { entailer!.
-        { apply Forall_repeat.
+        { split; [|unfold repable_signed in *; pose proof Int.min_signed_neg; omega].
+          apply Forall_repeat.
           split; [pose proof Int.min_signed_neg; omega|].
           transitivity 3; [omega | computable]. }
         rewrite size_def, Zminus_diag, app_nil_r, map_repeat; simpl; cancel. }

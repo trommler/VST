@@ -434,6 +434,12 @@ Proof.
     * rewrite Zlength_rebase; omega.
 Qed.
 
+Lemma rebase_map : forall {A B} (f : A -> B) l n, rebase (map f l) n = map f (rebase l n).
+Proof.
+  intros; unfold rebase.
+  rewrite rotate_map, Zlength_map; auto.
+Qed.
+
 Lemma sepcon_rebase : forall lP m, 0 <= m < Zlength lP ->
   fold_right sepcon emp lP = fold_right sepcon emp (rebase lP m).
 Proof.
