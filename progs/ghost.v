@@ -414,6 +414,20 @@ Proof.
     + if_tac; auto; contradiction.
 Qed.
 
+Corollary snaps_master_join : forall lv sh v2 p, sh <> Share.bot ->
+  fold_right sepcon emp (map (fun v => ghost_snap v p) lv) * ghost (sh, v2) p =
+  !!(Forall (fun v1 => ord v1 v2) lv) && ghost (sh, v2) p.
+Proof.
+  induction lv; simpl; intros.
+  - rewrite emp_sepcon, prop_true_andp; auto.
+  - rewrite sepcon_comm, <- sepcon_assoc, (sepcon_comm (ghost _ _)), snap_master_join by auto.
+    apply mpred_ext.
+    + Intros; rewrite sepcon_comm, IHlv by auto; entailer!.
+    + Intros.
+      match goal with H : Forall _ _ |- _ => inv H end.
+      rewrite prop_true_andp, sepcon_comm, IHlv by auto; entailer!.
+Qed.
+
 Lemma master_update : forall v v' p, ord v v' -> view_shift (ghost (Tsh, v) p) (ghost (Tsh, v') p).
 Proof.
   intros; apply ghost_update.
@@ -661,26 +675,35 @@ End Reference.
 Section PVar.
 (* Like ghost variables, but the partial values may be out of date. *)
 
-Instance max_PCM : PCM Z := { join a b c := c = Z.max a b }.
+Global Instance max_lub : lub_ord Z.le.
 Proof.
-  - intros; rewrite Z.max_comm; auto.
-  - intros; do 2 eexists; eauto; subst.
-    rewrite Z.max_assoc; auto.
-Defined.
+  constructor.
+  - intro; apply Z.le_refl.
+  - intro; apply Z.le_trans.
+  - intros; exists (Z.max a b).
+    split; [apply Z.le_max_l|].
+    split; [apply Z.le_max_r|].
+    intros; apply Z.max_lub; auto.
+Qed.
 
-Global Instance max_order : PCM_order Z.le.
+Lemma join_max : forall a b c, join a b c <-> c = Z.max a b.
 Proof.
-  constructor; simpl; intros.
-  - intro; omega.
-  - intros ???; omega.
-  - do 2 eexists; eauto; apply Z.max_lub; auto.
-  - subst; split; [apply Z.le_max_l | apply Z.le_max_r].
-  - rewrite Z.max_l; auto.
-Defined.
+  intros; simpl; split.
+  - intros (Ha & Hb & Hc').
+    pose proof (Z.max_lub _ _ _ Ha Hb).
+    specialize (Hc' (Z.max a b)).
+    lapply Hc'; [|apply Z.le_max_l].
+    intro X; lapply X; [|apply Z.le_max_r].
+    omega.
+  - intro; subst.
+    split; [apply Z.le_max_l|].
+    split; [apply Z.le_max_r|].
+    intros; apply Z.max_lub; auto.
+Qed.
 
 Lemma ghost_snap_join_Z : forall v1 v2 p, ghost_snap v1 p * ghost_snap v2 p = ghost_snap (Z.max v1 v2) p.
 Proof.
-  intros; apply ghost_snap_join; simpl; auto.
+  intros; apply ghost_snap_join, join_max; auto.
 Qed.
 
 Lemma snap_master_join' : forall v1 v2 p,

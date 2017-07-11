@@ -2856,6 +2856,14 @@ Proof.
     apply Heq; omega.
 Qed.
 
+Lemma sepcon_rotate : forall lP m n, 0 <= n - m < Zlength lP ->
+  fold_right sepcon emp lP = fold_right sepcon emp (rotate lP m n).
+Proof.
+  intros.
+  unfold rotate.
+  rewrite sepcon_app, sepcon_comm, <- sepcon_app, sublist_rejoin, sublist_same by omega; auto.
+Qed.
+
 Lemma semax_extract_later_prop'':
   forall {CS : compspecs} {Espec: OracleKind},
     forall (Delta : tycontext) (PP : Prop) P Q R c post P1 P2,

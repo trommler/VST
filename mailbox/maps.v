@@ -68,60 +68,62 @@ Proof.
   destruct (m1 x) eqn: Hm1, (m2 x) eqn: Hm2; eauto.
 Qed.
 
-Instance fmap_PCM : PCM (A -> option B) :=
-  { join a b c := forall k v, c k = Some v <-> a k = Some v \/ b k = Some v }.
+Lemma map_incl_compatible : forall m1 m2 m3 (Hincl1 : map_incl m1 m3) (Hincl2 : map_incl m2 m3), compatible m1 m2.
 Proof.
-  - intros.
-    rewrite Hjoin; tauto.
-  - intros.
-    exists (fun k => match b k with Some v' => Some v' | None => d k end).
-    assert (forall k v1 v2, b k = Some v1 -> d k = Some v2 -> v1 = v2) as Hbd.
-    { intros ??? Hb Hd.
-      specialize (Hjoin1 k v1).
-      destruct Hjoin1 as (_ & Hc); lapply Hc; auto; intro Hc'.
-      generalize (Hjoin2 k v1); intros (_ & He); lapply He; auto; intro He1.
-      specialize (Hjoin2 k v2); destruct Hjoin2 as (_ & Hjoin2); lapply Hjoin2; auto; intro He2.
-      rewrite He1 in He2; inv He2; auto. }
-    split; intros; specialize (Hjoin1 k v); specialize (Hjoin2 k v).
-    + destruct (b k) eqn: Hb; split; auto; intros [|]; auto; try discriminate.
-      exploit Hbd; eauto.
-    + rewrite Hjoin2, Hjoin1.
-      destruct (b k) eqn: Hb; split; auto; intros [|]; auto.
-      * specialize (Hbd _ _ _ Hb H); subst; auto.
-      * destruct H; auto; discriminate.
-Defined.
-
-Lemma map_join_spec : forall m1 m2 m3, join m1 m2 m3 <-> compatible m1 m2 /\ m3 = map_add m1 m2.
-Proof.
-  simpl; split; intros.
-  - split.
-    + repeat intro.
-      assert (m3 k = Some v1) as Hk by (rewrite H; auto).
-      replace (m3 k) with (Some v2) in Hk by (symmetry; rewrite H; auto).
-      inv Hk; auto.
-    + extensionality x; unfold map_add.
-      destruct (m1 x) eqn: Hm1; [rewrite H; auto|].
-      destruct (m2 x) eqn: Hm2; [rewrite H; auto|].
-      destruct (m3 x) eqn: Hm3; auto.
-      rewrite H in Hm3; destruct Hm3 as [Hm3 | Hm3]; rewrite Hm3 in *; discriminate.
-  - destruct H as [Hcompat]; subst; unfold map_add.
-    destruct (m1 k) eqn: Hm1; split; auto; intros [?|?]; eauto; discriminate.
+  intros; intros ??? Hk1 Hk2.
+  apply Hincl1 in Hk1; apply Hincl2 in Hk2.
+  rewrite Hk1 in Hk2; inv Hk2; auto.
 Qed.
 
-Instance fmap_order : PCM_order map_incl.
+Lemma map_incl_add : forall m1 m2, map_incl m1 (map_add m1 m2).
+Proof.
+  repeat intro; unfold map_add.
+  rewrite H; auto.
+Qed.
+
+Lemma map_add_incl : forall m1 m2 m3, map_incl m1 m3 -> map_incl m2 m3 -> map_incl (map_add m1 m2) m3.
+Proof.
+  unfold map_add; intros.
+  intros ?? Hk.
+  destruct (m1 k) eqn: Hk1; auto.
+  inv Hk; auto.
+Qed.
+
+Global Instance map_incl_lub : lub_ord map_incl.
 Proof.
   constructor.
   - apply map_incl_refl.
   - apply map_incl_trans.
-  - intros ??? Ha Hb; exists (map_add a b); split; simpl.
-    + intros; unfold map_add; destruct (a k) eqn: Hk; split; auto; intros [|]; auto; try discriminate.
-      specialize (Ha _ _ Hk); specialize (Hb _ _ H); rewrite Ha in Hb; auto.
-    + unfold map_add; intros ???.
-      destruct (a k) eqn: Hk; auto.
-      inv H; auto.
-  - split; repeat intro; specialize (H k v); rewrite H; auto.
-  - split; auto; intros [|]; auto.
-Defined.
+  - intros ??? Ha Hb.
+    exists (map_add a b).
+    split; [apply map_incl_add|].
+    pose proof (map_incl_compatible _ _ _ Ha Hb).
+    split; [rewrite map_add_comm by auto; apply map_incl_add|].
+    intros; apply map_add_incl; auto.
+Qed.
+
+Lemma map_join_spec : forall m1 m2 m3, join m1 m2 m3 <-> compatible m1 m2 /\ m3 = map_add m1 m2.
+Proof.
+  simpl; split; intros.
+  - destruct H as (Hm1 & Hm2 & Hm3); split.
+    + repeat intro.
+      assert (m3 k = Some v1) as Hk by auto.
+      replace (m3 k) with (Some v2) in Hk by (symmetry; auto).
+      inv Hk; auto.
+    + extensionality x; unfold map_add.
+      destruct (m1 x) eqn: Hk1; [auto|].
+      destruct (m2 x) eqn: Hk2; [auto|].
+      pose proof (map_incl_compatible _ _ _ Hm1 Hm2).
+      destruct (m3 x) eqn: Hk3; auto.
+      lapply (Hm3 (map_add m1 m2)); [|apply map_incl_add].
+      intro X; lapply X; [|rewrite map_add_comm by auto; apply map_incl_add].
+      intro Y; specialize (Y _ _ Hk3).
+      unfold map_add in Y; rewrite Hk1, Hk2 in Y; discriminate.
+  - destruct H as [Hcompat]; subst.
+    split; [apply map_incl_add; auto|].
+    split; [rewrite map_add_comm by auto; apply map_incl_add; auto|].
+    intros; apply map_add_incl; auto.
+Qed.
 
 Lemma map_snap_join : forall m1 m2 p,
   ghost_snap m1 p * ghost_snap m2 p = !!(compatible m1 m2) && ghost_snap (map_add m1 m2) p.
@@ -184,12 +186,6 @@ Proof.
   destruct (m1 x); auto.
 Qed.
 
-Lemma map_incl_add : forall m1 m2, map_incl m1 (map_add m1 m2).
-Proof.
-  repeat intro; unfold map_add.
-  rewrite H; auto.
-Qed.
-
 Lemma map_upd_incl : forall m1 m2 k v, map_incl m1 m2 ->
   m2 k = Some v -> map_incl (map_upd m1 k v) m2.
 Proof.
@@ -209,21 +205,6 @@ Proof.
   repeat match goal with H : forall _, _ |- _ => specialize (H k) end.
   replace (m1 k) with (Some v1) in *.
   destruct (m2 k); auto.
-Qed.
-
-Lemma map_incl_compatible : forall m1 m2 m3 (Hincl1 : map_incl m1 m3) (Hincl2 : map_incl m2 m3), compatible m1 m2.
-Proof.
-  intros; intros ??? Hk1 Hk2.
-  apply Hincl1 in Hk1; apply Hincl2 in Hk2.
-  rewrite Hk1 in Hk2; inv Hk2; auto.
-Qed.
-
-Lemma map_add_incl : forall m1 m2 m3, map_incl m1 m3 -> map_incl m2 m3 -> map_incl (map_add m1 m2) m3.
-Proof.
-  unfold map_add; intros.
-  intros ?? Hk.
-  destruct (m1 k) eqn: Hk1; auto.
-  inv Hk; auto.
 Qed.
 
 Lemma incl_compatible : forall m1 m2, map_incl m1 m2 -> compatible m1 m2.

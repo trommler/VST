@@ -434,4 +434,10 @@ Proof.
     * rewrite Zlength_rebase; omega.
 Qed.
 
+Lemma sepcon_rebase : forall lP m, 0 <= m < Zlength lP ->
+  fold_right sepcon emp lP = fold_right sepcon emp (rebase lP m).
+Proof.
+  intros; apply sepcon_rotate; omega.
+Qed.
+
 End Hashtable.
