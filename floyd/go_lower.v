@@ -233,6 +233,12 @@ intros.
 apply prop_right; auto.
 Qed.
 
+Lemma empTrue:
+ @derives mpred Nveric (@emp mpred Nveric Sveric) (@prop mpred Nveric True).
+Proof.
+apply prop_right; auto.
+Qed.
+
 Definition rho_marker := tt.
 (*
 Ltac go_lower :=
@@ -631,6 +637,48 @@ Ltac clean_LOCAL_canon_canon :=
                 subst tl
          end).
 
+Ltac clean_LOCAL_canon_PROP :=
+  match goal with
+  | |- local _ && (PROPx _ (LOCALx _ (SEPx _))) |-- prop _ =>
+    apply go_lower_localdef_canon_left
+  end;
+         (let tl := fresh "tl" in
+         let QQ := fresh "Q" in
+         let PPr := fresh "Pr" in
+         match goal with
+         | |- context [?Pr ++ localdefs_tc ?Delta ?Q] =>
+                set (tl := Pr ++ localdefs_tc Delta Q);
+                set (PPr := Pr) in tl;
+                set (QQ := Q) in tl;
+                unfold Delta, abbreviate in tl;
+                cbv [localdefs_tc localdef_tc temp_types tc_val concat map app Pos.eqb PTree.get] in tl;
+                unfold_localdef_name QQ Q;
+                subst PPr QQ;
+                cbv beta iota zeta in tl;
+                subst tl
+         end).
+
+Ltac clean_LOCAL_canon_SEP :=
+  match goal with
+  | |- local _ && (PROPx _ (LOCALx _ (SEPx _))) |-- ` _ =>
+    apply go_lower_localdef_canon_left
+  end;
+         (let tl := fresh "tl" in
+         let QQ := fresh "Q" in
+         let PPr := fresh "Pr" in
+         match goal with
+         | |- context [?Pr ++ localdefs_tc ?Delta ?Q] =>
+                set (tl := Pr ++ localdefs_tc Delta Q);
+                set (PPr := Pr) in tl;
+                set (QQ := Q) in tl;
+                unfold Delta, abbreviate in tl;
+                cbv [localdefs_tc localdef_tc temp_types tc_val concat map app Pos.eqb PTree.get] in tl;
+                unfold_localdef_name QQ Q;
+                subst PPr QQ;
+                cbv beta iota zeta in tl;
+                subst tl
+         end).
+
 Lemma go_lower_localdef_canon_tc_expr {cs: compspecs} : forall Delta Ppre Qpre Rpre e T1 T2,
   local2ptree Qpre = (T1, T2, nil, nil) ->
   local (tc_environ Delta) && PROPx (Ppre ++ localdefs_tc Delta Qpre) (LOCALx nil (SEPx Rpre)) |-- `(msubst_tc_expr Delta T1 T2 e) ->
@@ -694,14 +742,15 @@ Qed.
 Ltac clean_LOCAL_canon_tc :=
   match goal with
   | |- local _ && (PROPx _ (LOCALx _ (SEPx _))) |-- tc_expr _ _ =>
-    apply go_lower_localdef_canon_tc_expr
+    eapply go_lower_localdef_canon_tc_expr
   | |- local _ && (PROPx _ (LOCALx _ (SEPx _))) |-- tc_lvalue _ _ =>
-    apply go_lower_localdef_canon_tc_lvalue
+    eapply go_lower_localdef_canon_tc_lvalue
   | |- local _ && (PROPx _ (LOCALx _ (SEPx _))) |-- tc_exprlist _ _ _ =>
-    apply go_lower_localdef_canon_tc_exprlist
+    eapply go_lower_localdef_canon_tc_exprlist
   | |- local _ && (PROPx _ (LOCALx _ (SEPx _))) |-- tc_expropt _ _ _ =>
-    apply go_lower_localdef_canon_tc_expropt
+    eapply go_lower_localdef_canon_tc_expropt
   end;
+  [prove_local2ptree |];
          (let tl := fresh "tl" in
          let QQ := fresh "Q" in
          let PPr := fresh "Pr" in
@@ -728,10 +777,11 @@ match goal with
  | |- ENTAIL _, _ |-- _ => idtac
  | _ => fail 10 "go_lower requires a proof goal in the form of (ENTAIL _ , _ |-- _)"
 end;
-first [clean_LOCAL_canon_canon | clean_LOCAL_canon_tc];
+first [clean_LOCAL_canon_canon | clean_LOCAL_canon_PROP | clean_LOCAL_canon_SEP | clean_LOCAL_canon_tc];
 repeat (simple apply derives_extract_PROP; fancy_intro true);
 let rho := fresh "rho" in
 intro rho;
+try (simple apply quick_finish_lower; apply empTrue);
 try match goal with
 | |- ?LHS |--  ?S rho =>
        unify (S rho) (S any_environ);
@@ -740,7 +790,6 @@ try match goal with
    unfold_for_go_lower; simpl; subst x;
    rewrite ?(prop_true_andp True) by auto
 end;
-try simple apply quick_finish_lower;
  (simple apply finish_lower ||
  match goal with
  | |- (_ && PROPx nil _) _ |-- _ => fail 1 "LOCAL part of precondition is not a concrete list (or maybe Delta is not concrete)"

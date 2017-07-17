@@ -574,12 +574,6 @@ Proof.
 intros. apply andp_right; auto. apply prop_right; auto.
 Qed.
 
-Lemma empTrue:
- @derives mpred Nveric (@emp mpred Nveric Sveric) (@prop mpred Nveric True).
-Proof.
-apply prop_right; auto.
-Qed.
-
 Ltac entailer_for_return :=
  go_lower;
  unfold main_post; simpl;
