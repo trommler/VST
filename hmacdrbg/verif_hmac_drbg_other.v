@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
 
@@ -10,7 +10,7 @@ Require Import sha.HMAC256_functional_prog.
 Require Import sha.spec_sha.
 Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
 Require Import sha.general_lemmas.
-Require Import floyd.library.
+Require Import VST.floyd.library.
 
 Lemma body_hmac_drbg_free: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
       f_mbedtls_hmac_drbg_free hmac_drbg_free_spec.
@@ -20,7 +20,7 @@ Proof.
   rewrite da_emp_isptrornull. Intros.
   destruct ctx; try contradiction.
   - (*ctx==null*)
-    simpl in *; subst i. rewrite da_emp_null; trivial.
+    simpl in PNctx; subst i. rewrite da_emp_null; trivial.
     forward_if (`FF).
     + forward. apply tt.
     + inv H.

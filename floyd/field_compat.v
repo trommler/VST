@@ -1,16 +1,15 @@
-Require Import floyd.base.
-Require Import floyd.client_lemmas.
-Require Import floyd.assert_lemmas.
-Require Import floyd.type_induction.
-Require Import floyd.nested_pred_lemmas.
-Require Import floyd.nested_field_lemmas.
-Require Import floyd.mapsto_memory_block.
-Require Import floyd.reptype_lemmas.
-Require floyd.aggregate_pred. Import floyd.aggregate_pred.aggregate_pred.
-Require Import floyd.data_at_rec_lemmas.
-Require Import floyd.jmeq_lemmas.
-Require Import floyd.sublist.
-Require Import floyd.field_at.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.type_induction.
+Require Import VST.floyd.nested_pred_lemmas.
+Require Import VST.floyd.nested_field_lemmas.
+Require Import VST.floyd.mapsto_memory_block.
+Require Import VST.floyd.reptype_lemmas.
+Require VST.floyd.aggregate_pred. Import VST.floyd.aggregate_pred.aggregate_pred.
+Require Import VST.floyd.data_at_rec_lemmas.
+Require Import VST.floyd.jmeq_lemmas.
+Require Import VST.floyd.sublist.
+Require Import VST.floyd.field_at.
 
 Lemma field_compatible_offset_zero:
   forall {cs: compspecs} t gfs p,
@@ -208,17 +207,18 @@ assert (field_compatible (Tarray t i noattr) nil d /\
   unfold field_compatible, field_compatible0 in *.
 decompose [and] H0; clear H0.
 destruct d; try contradiction.
-intuition.
+repeat split; auto.
 *
+clear - H3 H SP SL SL' ST.
 unfold legal_alignas_type in H3|-*.
 rewrite nested_pred_eq, andb_true_iff in H3|-*.
 destruct H3; split; auto.
-unfold local_legal_alignas_type in H|-*.
-rewrite andb_true_iff in H|-*; destruct H.
-rewrite andb_true_iff in H10 |-*; destruct H10.
+unfold local_legal_alignas_type in H0|-*.
+rewrite andb_true_iff in H0|-*; destruct H0.
+rewrite andb_true_iff in H2 |-*; destruct H2.
 split; auto.
 split; auto.
-apply Z.leb_le; auto.
+apply Z.leb_le; auto. omega.
 *
 unfold sizeof in H5|-*. fold sizeof in H5|-*.
 rewrite Z.max_r in H5|-* by omega.
@@ -229,13 +229,16 @@ unfold sizeof in H6|-*. fold sizeof in H6 |-*.
 rewrite Z.max_r in H6|-* by omega.
 omega.
 *
+clear - H3 H SP SL SL' ST.
 unfold legal_alignas_type in H3|-*.
 rewrite nested_pred_eq, andb_true_iff in H3|-*.
 destruct H3; split; auto.
-unfold local_legal_alignas_type in H|-*.
-rewrite andb_true_iff in H|-*; destruct H; split; auto.
-rewrite andb_true_iff in H10|-*; destruct H10; split; auto.
-apply Z.leb_le; omega.
+unfold local_legal_alignas_type in H0|-*.
+rewrite andb_true_iff in H0|-*; destruct H0.
+rewrite andb_true_iff in H2 |-*; destruct H2.
+split; auto.
+split; auto.
+apply Z.leb_le; auto. omega.
 *
 unfold sizeof in H5|-*. fold sizeof in H5|-*.
 rewrite Z.max_r in H5|-* by omega.
@@ -288,8 +291,9 @@ rewrite Z.max_r in H6 by omega.
 change Int.max_unsigned with (Int.modulus-1).
 omega.
 *
-split; auto.
-split; auto.
+omega.
+*
+omega.
 }
 destruct H1 as [? [? ?]].
 rewrite field_address0_offset.

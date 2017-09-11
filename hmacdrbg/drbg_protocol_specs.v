@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
 
@@ -10,7 +10,7 @@ Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
 
 Require Import sha.HMAC256_functional_prog.
 Require Import hmacdrbg.entropy_lemmas.
-Require Import floyd.library.
+Require Import VST.floyd.library.
 
 Require Import hmacdrbg.HMAC256_DRBG_bridge_to_FCF.
 
@@ -116,7 +116,10 @@ Definition drbg_setPredictionResistance_spec_abs :=
        PROP ( )
        LOCAL (temp _ctx ctx; temp _resistance (Val.of_bool r))
        SEP (AREP kv A ctx)
-    POST [ tvoid ] SEP (AREP kv (setPR_ABS r A) ctx).
+    POST [ tvoid ]
+       PROP ()
+       LOCAL ()
+       SEP (AREP kv (setPR_ABS r A) ctx).
 
 
 Definition drbg_setEntropyLen_spec_abs :=
@@ -128,6 +131,8 @@ Definition drbg_setEntropyLen_spec_abs :=
        LOCAL (temp _ctx ctx; temp _len (Vint (Int.repr l)))
        SEP (AREP kv A ctx)
     POST [ tvoid ]
+       PROP ()
+       LOCAL ()
        SEP (AREP kv (setEL_ABS l A) ctx).
 
 Definition drbg_setReseedInterval_spec_abs :=
@@ -139,6 +144,8 @@ Definition drbg_setReseedInterval_spec_abs :=
        LOCAL (temp _ctx ctx; temp _interval (Vint (Int.repr ri)))
        SEP (AREP kv A ctx)
     POST [ tvoid ]
+       PROP ()
+       LOCAL ()
        SEP (AREP kv (setRI_ABS ri A) ctx).
 
 Definition drbg_update_abs_spec :=

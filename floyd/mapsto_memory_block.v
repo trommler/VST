@@ -1,7 +1,6 @@
-Require Import floyd.base.
-Require Import floyd.assert_lemmas.
-Require Import floyd.client_lemmas.
-Require Import floyd.nested_pred_lemmas.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.nested_pred_lemmas.
 
 Local Open Scope logic.
 
@@ -170,13 +169,6 @@ Proof.
   - apply H0.
 Qed.
 
-Lemma repr_unsigned: forall i, Int.repr (Int.unsigned i) = i.
-Proof.
-  intros.
-  apply Int.eqm_repr_eq.
-  apply Int.eqm_refl.
-Qed.
-
 Lemma mapsto_by_value: forall sh t p v, mapsto sh t p v = !! (type_is_by_value t = true) && mapsto sh t p v.
 Proof.
   intros.
@@ -300,7 +292,7 @@ Auxilliary Lemmas
 Lemma remove_PROP_LOCAL_left: forall P Q R S, R |-- S -> PROPx P (LOCALx Q R) |-- S.
 Proof.
   intros.
-  go_lower0.
+  go_lowerx.
   normalize.
 Qed.
 
@@ -309,7 +301,7 @@ Lemma remove_PROP_LOCAL_left':
      PROPx P (LOCALx Q (SEPx (R::nil))) |-- S.
 Proof.
   intros.
-  go_lower0.
+  go_lowerx.
   normalize. apply H.
 Qed.
 
@@ -440,7 +432,8 @@ Proof.
   normalize.
   f_equal.
   extensionality rho.
-  unfold_for_go_lower. simpl.
+  unfold LOCALx, SEPx, local, lift1; simpl.
+  unfold_lift. simpl.
   fold locald_denote.
   forget (fold_right
      (fun (x0 x1 : environ -> Prop) (x2 : environ) => x0 x2 /\ x1 x2)

@@ -1,8 +1,8 @@
 Require Import mailbox.verif_atomic_exchange.
-Require Import progs.conclib.
-Require Import progs.ghost.
-Require Import floyd.library.
-Require Import floyd.sublist.
+Require Import VST.progs.conclib.
+Require Import VST.progs.ghost.
+Require Import VST.floyd.library.
+Require Import VST.floyd.sublist.
 Require Import mailbox.mailbox.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -596,7 +596,6 @@ Proof.
   rewrite !app_nil_r.
   Exists comms locks bufs reads lasts g g0 g1 g2.
   (* entailer! is slow *)
-  apply andp_right; auto.
   apply andp_right; [apply prop_right; repeat (split; auto)|].
   apply andp_right; auto; cancel.
 Qed.
@@ -788,7 +787,7 @@ Proof.
       entailer!.
       apply latest_read_new; auto.
       apply hist_incl_lt; auto. }
-  Intros x b'; destruct x as (t, v); simpl in *.
+  Intros x b'; destruct x as (t, v). simpl fst in *; simpl snd in *.
   assert (exists b, v = vint b /\ -1 <= b < B /\ if eq_dec b (-1) then b' = b0 else b' = b) as (b & ? & ? & ?).
   { destruct (eq_dec v Empty); subst.
     - exists (-1); rewrite eq_dec_refl; split; auto; omega.
@@ -1002,11 +1001,11 @@ Proof.
       discriminate. }
     Intros.
     forward.
+    { unfold B, N in *; apply prop_right; omega. }
     { entailer!.
       subst available; apply Forall_Znth; [rewrite Zlength_map, Zlength_upto; unfold B, N in *; simpl; omega|].
       rewrite Forall_forall; intros ? Hin.
       rewrite in_map_iff in Hin; destruct Hin as (? & ? & ?); subst; simpl; auto. }
-    { unfold B, N in *; apply prop_right; omega. }
     forward_if (PROP (Znth i available (vint 0) = vint 0)
       LOCAL (temp _i__1 (vint i); lvar _available (tarray tint B) lvar0; gvar _writing writing;
              gvar _last_given last_given; gvar _last_taken last_taken)
@@ -1014,7 +1013,7 @@ Proof.
            data_at Ews tint (vint b0) last_given; data_at Ews (tarray tint N) (map (fun x : Z => vint x) lasts) last_taken)).
     { forward.
       forward.
-      Exists lvar0 i; entailer!.
+      Exists i; entailer!.
       { subst available.
         match goal with H : typed_true _ _ |- _ => setoid_rewrite Znth_map in H; [rewrite Znth_upto in H|];
           try assumption; rewrite ?Zlength_upto, ?Z2Nat.id; try omega; unfold typed_true in H; simpl in H; inv H end.
@@ -1872,8 +1871,8 @@ Proof.
       * destruct (eq_dec a b0); reflexivity.
 Qed.
 
-Ltac entailer_for_load_tac ::= go_lower; entailer'.
-Ltac entailer_for_store_tac ::= go_lower; entailer'.
+Ltac entailer_for_load_tac ::= unfold tc_efield; go_lower; entailer'.
+Ltac entailer_for_store_tac ::= unfold tc_efield; go_lower; entailer'.
 
 Lemma body_reader : semax_body Vprog Gprog f_reader reader_spec.
 Proof.

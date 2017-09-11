@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import sha.sha.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
@@ -65,7 +65,6 @@ eapply seq_assocN with (cs := add_them_back). {
 }
 simpl; abbreviate_semax.
 forward. (* return; *)
-Exists Xv.
 fold (hash_block  (hash_blocks init_registers hashed) b).
 rewrite hash_blocks_last by auto.
 entailer!.

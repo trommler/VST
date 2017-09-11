@@ -1,5 +1,5 @@
-Require Import floyd.proofauto.
-Require Import progs.bst_oo.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.bst_oo.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -147,7 +147,7 @@ Definition subscr_spec :=
     PROP(Int.min_signed <= x <= Int.max_signed)
     LOCAL(temp _t b; temp _key (Vint (Int.repr x)))
     SEP (treebox_rep t b)
-  POST [ (tptr tvoid) ]
+  POST [ tptr (tptr tvoid) ]
     EX p: val, EX q: val,
     PROP(key_store (insert x p t) x q)
     LOCAL(temp ret_temp q)

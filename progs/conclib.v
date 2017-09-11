@@ -1,9 +1,9 @@
-Require Export msl.predicates_sl.
-Require Export concurrency.semax_conc_pred.
-Require Export concurrency.semax_conc.
-Require Export floyd.proofauto.
-Require Import floyd.library.
-Require Export floyd.sublist.
+Require Export VST.msl.predicates_sl.
+Require Export VST.concurrency.semax_conc_pred.
+Require Export VST.concurrency.semax_conc.
+Require Export VST.floyd.proofauto.
+Require Import VST.floyd.library.
+Require Export VST.floyd.sublist.
 
 (* general list lemmas *)
 Notation vint z := (Vint (Int.repr z)).
@@ -351,13 +351,6 @@ Corollary Forall_sublist_first : forall {A} (P : A -> Prop) i j l d
 Proof.
   intros.
   apply Z.le_antisymm; eapply Forall_sublist_le; eauto; omega.
-Qed.
-
-Lemma Znth_In : forall {A} i l (d : A), 0 <= i < Zlength l -> In (Znth i l d) l.
-Proof.
-  intros; unfold Znth.
-  destruct (zlt i 0); [omega|].
-  apply nth_In; rewrite Zlength_correct in *; Omega0.
 Qed.
 
 Lemma NoDup_Znth_inj : forall {A} (d : A) l i j (HNoDup : NoDup l)
@@ -1007,14 +1000,6 @@ Proof.
   induction l1; destruct l3; try discriminate; auto; intros.
   inv H; inv Hlen.
   exploit IHl1; eauto; intros (? & ?); split; [constructor|]; auto.
-Qed.
-
-Lemma sublist_nil_gen : forall {A} (l : list A) i j, j <= i -> sublist i j l = [].
-Proof.
-  intros; unfold sublist.
-  replace (Z.to_nat (j - i)) with O; auto.
-  destruct (eq_dec (j - i) 0); try Omega0.
-  rewrite Z2Nat_neg; auto; omega.
 Qed.
 
 Lemma Forall2_firstn : forall {A B} (P : A -> B -> Prop) l1 l2 n, Forall2 P l1 l2 ->
@@ -1886,11 +1871,11 @@ Proof.
   { exists r2; auto. }
   { exists r1; apply sepalg.join_comm; auto. }
   intro; subst.
-  pose proof (sepalg.join_self H); subst.
+  pose proof (sepalg.join_self H) as Hid.
+  apply Hid in H; subst.
   destruct (Hpositive a) as (l & ? & ? & ? & ? & HYES); [split; auto; omega|].
-  apply compcert_rmaps.RML.resource_at_join with (loc := l) in H.
-  pose proof (sepalg.unit_identity _ H) as Hid.
-  rewrite HYES in Hid; apply compcert_rmaps.RML.YES_not_identity in Hid; contradiction.
+  destruct (compcert_rmaps.RML.resource_at_empty Hid l) as [Hl | [? [? Hl]]];
+    rewrite Hl in HYES; discriminate.
 Qed.
 
 Lemma precise_positive_conflict : forall P (Hprecise : precise P) (Hpositive : positive_mpred P), P * P |-- FF.
@@ -3104,7 +3089,7 @@ apply andp_right.
   unfold gvar_denote, eval_var, Map.get.
   destruct H as (_ & _ & DG & DS).
   destruct (DS id _ GS) as [-> | (t & E)]; [ | congruence].
-  destruct (DG id _ GS) as (? & -> & ?); auto.
+  destruct (DG id _ GS) as [? ?]; rewrite H; auto.
 - (* about func_ptr/func_ptr' *)
   unfold func_ptr'.
   rewrite <- andp_left_corable, andp_comm; auto.

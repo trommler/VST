@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import sha.sha.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
@@ -31,7 +31,6 @@ forward_call (* SHA256_Final(md,&c); *)
     (sublist 0 (Zlength data) data, md, c, msh, kv).
 
 forward. (* return; *)
-Exists c.
 change (Tstruct _SHA256state_st noattr) with t_struct_SHA256state_st.
 autorewrite with sublist.
 entailer!.

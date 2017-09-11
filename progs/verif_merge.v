@@ -1,6 +1,6 @@
-Require Import floyd.proofauto.
-Require Import progs.merge.
-Require Import progs.list_dt. Import LsegSpecial.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.merge.
+Require Import VST.progs.list_dt. Import LsegSpecial.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -531,14 +531,14 @@ forward.
 destruct merged as [|hmerge tmerge].
 (* when merged = [] *)
 assert (begin = c_) by intuition. subst c_.
-Exists ret_ ab_; entailer!.
+Exists ab_; entailer!.
 rewrite H; auto.
 
 (* when merged <> [] *)
 remember (hmerge :: tmerge) as merged.
 assert (Hm: merged <> []) by congruence.
 clear hmerge tmerge Heqmerged.
-Exists ret_ begin; entailer.
+Exists begin; entailer.
 
 (* to match the specification from the invariant, we split it into three parts: *)
 

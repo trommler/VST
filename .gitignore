@@ -13,6 +13,7 @@
 # Emacs saves
 *~
 # Executables and configuration
+CONFIGURE
 compcert/ccomp
 compcert/ccomp.byte
 compcert/ccomp.prof
@@ -65,6 +66,7 @@ compcert/test/
 *.v.d
 .depend
 .loadpath
+.loadpath-export
 version.v
 coqide
 *.cache
@@ -73,3 +75,5 @@ coqide
 .#*
 *.aux
 _CoqProject
+.loadpath-export
+_CoqProject-export

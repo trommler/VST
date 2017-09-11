@@ -1,5 +1,5 @@
-Require Import floyd.proofauto.
-Require Import progs.float.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.float.
 
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
@@ -39,9 +39,6 @@ unfold data_at.
 entailer!.
 simpl.
 unfold field_at, data_at_rec, at_offset. simpl.
-
-  assert (FC: field_compatible t_struct_foo [] s)
-    by (apply headptr_field_compatible; auto; compute; auto).
   repeat (rewrite prop_true_andp by (auto with field_compatible)).
 fold noattr; fold tint; fold tfloat; fold tdouble.
 repeat match goal with |- context [field_offset ?A ?B ?C] =>

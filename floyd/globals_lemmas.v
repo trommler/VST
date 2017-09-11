@@ -1,14 +1,13 @@
-Require Import floyd.base.
-Require Import floyd.client_lemmas.
-Require Import floyd.assert_lemmas.
-Require Import floyd.nested_field_lemmas.
-Require Import floyd.mapsto_memory_block.
-Require Import floyd.reptype_lemmas.
-Require Import floyd.data_at_rec_lemmas.
-Require Import floyd.field_at.
-Require Import floyd.closed_lemmas.
-Require Import floyd.nested_pred_lemmas.
-(*Require Import floyd.unfold_data_at.*)
+Require Import VST.floyd.base2.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.nested_field_lemmas.
+Require Import VST.floyd.mapsto_memory_block.
+Require Import VST.floyd.reptype_lemmas.
+Require Import VST.floyd.data_at_rec_lemmas.
+Require Import VST.floyd.field_at.
+Require Import VST.floyd.closed_lemmas.
+Require Import VST.floyd.nested_pred_lemmas.
+(*Require Import VST.floyd.unfold_data_at.*)
 Local Open Scope logic.
 
 Fixpoint fold_right_sepcon' (l: list(environ->mpred)) : environ -> mpred :=
@@ -62,7 +61,7 @@ unfold globvar2pred.
 simpl.
 destruct H6 as [? [? [? ?]]].
 destruct (H9 i _ H0); [ | destruct H10; congruence].
-destruct (H8 _ _ H0) as [b [? ?]].
+destruct (H8 _ _ H0) as [b ?].
 rewrite H11. rewrite H1.
 rewrite H3; simpl.
 unfold eval_var.
@@ -87,7 +86,7 @@ unfold globvar2pred.
 simpl.
 destruct H6 as [? [? [? ?]]].
 destruct (H9 i _ H0); [ | destruct H10; congruence].
-destruct (H8 _ _ H0) as [b [? ?]].
+destruct (H8 _ _ H0) as [b ?].
 rewrite H11. rewrite H1.
 rewrite H3; simpl.
 apply exp_right with (Vptr b Int.zero).
@@ -240,7 +239,7 @@ intros H1 HH H1' H6' H6 H7 H8 H1'' RS.
 *  destruct ((var_types Delta) ! i) eqn:Hv;
    destruct ((glob_types Delta) ! i) eqn:Hg;
     try destruct g; try solve [simpl; apply TT_right].
- +   destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' [H15 H16]]; rewrite H15.
+ +   destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' H15]; rewrite H15.
      simpl.
      rewrite H8.
      eapply derives_trans.
@@ -252,7 +251,7 @@ intros H1 HH H1' H6' H6 H7 H8 H1'' RS.
     auto.
     auto.
  +
-   destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' [H15 H16]]; rewrite H15.
+   destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' H15]; rewrite H15.
    assert (Hv' :=proj1 (expr_lemmas2.typecheck_var_environ_None _ _ (proj1 (proj2 H7)) i) Hv).
    assert (locald_denote (gvar i (Vptr b' Int.zero)) rho)
      by (hnf; rewrite Hv'; rewrite H15; auto).
@@ -655,7 +654,7 @@ split. destruct sz; reflexivity.
   eapply derives_trans; [| apply (id2pred_star_ZnthV_Tint Delta); auto].
  2: rewrite <- H5; auto.
 Opaque sizeof.
-  old_go_lower.
+  go_lowerx.
 Transparent sizeof.
   normalize.
  rename H8 into H19.
@@ -677,13 +676,15 @@ Transparent sizeof.
     unfold Int.max_unsigned in H6.
     pose proof init_data_list_size_pos (gvar_init gv).
     omega.
-  } 
- hnf in H19. 
- destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
- rewrite H9 in H19; subst s.
- rewrite prop_true_andp; auto.
- rewrite H8 in *.
- split3; auto.
+  }
+  apply andp_right; auto.
+  apply prop_right.
+  hnf in H3;
+  destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
+  destruct ((ge_of rho) i); try contradiction.
+  subst s.
+  rewrite H8 in *.
+  split3; auto.
 Qed.
 
 Lemma process_globvar:

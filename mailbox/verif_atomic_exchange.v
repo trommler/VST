@@ -1,8 +1,8 @@
-Require Import veric.rmaps.
-Require Import progs.conclib.
-Require Import progs.ghost.
-Require Import floyd.library.
-Require Import floyd.sublist.
+Require Import VST.veric.rmaps.
+Require Import VST.progs.conclib.
+Require Import VST.progs.ghost.
+Require Import VST.floyd.library.
+Require Import VST.floyd.sublist.
 Require Import mailbox.atomic_exchange.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -182,8 +182,8 @@ Proof.
     Exists (h' ++ [AE v' v]) v; entailer!.
     cancel. }
   forward.
-  Exists (length h') (Vint v'); unfold AE_loc; entailer!.
-  - rewrite Forall_forall; intros (?, ?) Hin.
+  Exists (length h') (Vint v'). unfold AE_loc; entailer!.
+  - rewrite Forall_forall. intros (?, ?) Hin.
     specialize (Hincl _ _ Hin).
     simpl; rewrite <- nth_error_Some, Hincl; discriminate.
   - apply andp_left2; auto.

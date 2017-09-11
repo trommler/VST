@@ -1,8 +1,7 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Local Open Scope logic.
 Require Import Coq.Lists.List. Import ListNotations.
 Require Import sha.general_lemmas.
-Require Import floyd.deadvars.
 
 Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith. 
@@ -45,7 +44,7 @@ Proof.
 Qed.
 
 (* TODO remove this line and update proof (should become simpler) *)
-Ltac canon_load_result Hresult ::= idtac.
+Ltac canon_load_result ::= idtac.
 
 (*Hint Rewrite op_Z_ulong_Vint_repr using ???(repable_signed) : norm.*)
 
@@ -1121,7 +1120,7 @@ Ltac mkConciseDelta V G F Delta :=
 (*
 mkConciseDelta SalsaVarSpecs SalsaFunSpecs
       f_crypto_stream_salsa20_tweet_xor Delta. *)
-  forward. Exists x z. entailer!. 
+  forward. entailer!. 
   unfold crypto_stream_xor_postsep. 
   rewrite Int64.eq_true. cancel. }
 { unfold typed_false, strict_bool_val in H. simpl in H.
@@ -1507,7 +1506,7 @@ forward_if (IfPost z x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit) non
 }
 unfold IfPost. 
 forward.
-Exists x z. unfold tarray; entailer!.
+unfold tarray; entailer!.
 unfold crypto_stream_xor_postsep. cancel.
 destruct (Int64.eq bInit Int64.zero). trivial.
 Intros l. Exists l. apply andp_right; trivial.

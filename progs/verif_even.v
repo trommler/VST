@@ -1,6 +1,6 @@
-Require Import floyd.proofauto.
-Require Import progs.even.
-Require Import progs.verif_evenodd_spec.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.even.
+Require Import VST.progs.verif_evenodd_spec.
 
 Local Open Scope assert.
 
@@ -39,7 +39,10 @@ Qed.
 Definition Espec := add_funspecs NullExtension.Espec (ext_link_prog even.prog) Gprog.
 Existing Instance Espec.
 
-Lemma all_funcs_correct: semax_func Vprog Gprog (prog_funct prog) Gprog.
+(* Can't prove   prog_correct: semax_prog prog Vprog Gprog
+  because there is no _main function, so prove all_funcs_correct instead. *)
+Lemma all_funcs_correct:
+  semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.
 repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
 semax_func_cons_ext.

@@ -1,8 +1,7 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
-Require Import floyd.deadvars.
 
 Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith.
@@ -15,7 +14,7 @@ Require Import tweetnacl20140427.spec_salsa.
 Opaque Snuffle.Snuffle. Opaque prepare_data.
 
 (* TODO remove this line and update proof (should become simpler) *)
-Ltac canon_load_result Hresult ::= idtac.
+Ltac canon_load_result ::= idtac.
 
 Definition HTrue_inv1 l i ys xs : Prop :=
       Zlength l = 16 /\ exists ints, l=map Vint ints /\

@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
 
@@ -508,12 +508,7 @@ Lemma BDY_update: forall
                 initial_state ctx info_contents;
          da_emp Tsh (tarray tuchar (Zlength contents))
            (map Vint (map Int.repr contents)) additional; K_vector kv)))
-     ((EX v : val,
-       local (locald_denote (lvar _sep (tarray tuchar 1) v)) &&
-       ` (data_at_ Tsh (tarray tuchar 1) v))%assert *
-      (EX v : val,
-       local (locald_denote (lvar _K (tarray tuchar 32) v)) &&
-       ` (data_at_ Tsh (tarray tuchar 32) v))%assert)).
+     (stackframe_of f_mbedtls_hmac_drbg_update)).
 Proof. intros.
   destruct initial_state as [IS1 [IS2 [IS3 [IS4 [IS5 IS6]]]]].
   rewrite da_emp_isptrornull.
@@ -918,12 +913,12 @@ Proof. intros.
   forward.
  
   (* prove function post condition *)
-  Exists K sep; entailer!. 
+  entailer!. 
 Time Qed. (*Coq8.6: 31secs*)
 
 Lemma body_hmac_drbg_update: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
        f_mbedtls_hmac_drbg_update hmac_drbg_update_spec.
 Proof. start_function. apply BDY_update; trivial. Qed.
   
-Require Import floyd.ASTsize.
+Require Import VST.floyd.ASTsize.
 Eval compute in (ASTsize (fn_body f_mbedtls_hmac_drbg_update)).

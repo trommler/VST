@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import sha.sha.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
@@ -330,7 +330,7 @@ assert (ADD_S := add_s _ _ H H0).
 Opaque add_upto.
 
 (* TODO remove this line and update proof (should become simpler) *)
-Ltac canon_load_result Hresult ::= idtac.
+Ltac canon_load_result ::= idtac.
 
 forward.
 entailer!. apply INT_ADD_UPTO; auto; computable.

@@ -1,10 +1,10 @@
-Require Import floyd.base.
-Require Import floyd.assert_lemmas.
-Require Import floyd.client_lemmas.
-Require Import floyd.reptype_lemmas.
-Require Import floyd.data_at_rec_lemmas.
-Require Import floyd.field_at floyd.nested_field_lemmas.
-Require Import floyd.sublist.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.go_lower.
+Require Import VST.floyd.reptype_lemmas.
+Require Import VST.floyd.data_at_rec_lemmas.
+Require Import VST.floyd.field_at VST.floyd.nested_field_lemmas.
+Require Import VST.floyd.sublist.
 
 Local Open Scope logic.
 
@@ -275,10 +275,13 @@ intros.
  unfold valid_pointer.
  pose proof (extend_tc.extend_valid_pointer' p 0).
  pose proof (predicates_hered.boxy_e _ _ H).
+ change (_ |-- _) with (predicates_hered.derives (valid_pointer' p 0 * Q) (valid_pointer' p 0)).
+ intros ? (w1 & w2 & Hj & Hp & ?).
+ apply (H0 w1); auto.
+ hnf; eauto.
+Qed.
 
-Admitted.
-
- Lemma sepcon_valid_pointer1:
+Lemma sepcon_valid_pointer1:
      forall (P Q: mpred) p,
         P |-- valid_pointer p ->
         P * Q |-- valid_pointer p.
@@ -579,17 +582,6 @@ Lemma empTrue:
 Proof.
 apply prop_right; auto.
 Qed.
-
-Ltac entailer_for_return :=
- go_lower;
- unfold main_post; simpl;
- try simple apply empTrue;
- saturate_local; ent_iter;
- normalize;
- repeat erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]);
- entailer';
- rewrite <- ?sepcon_assoc;
- try match goal with rho: environ |- _ => clear rho end.
 
 Ltac entbang :=
  intros;

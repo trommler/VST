@@ -1,24 +1,23 @@
-(* Require Import floyd.proofauto.
+(* Require Import VST.floyd.proofauto.
    TEMPORARILY replace "floyd.proofauto"
    with all the imports in the list below.
    This reduces makefile-based recompilation
    when changing things in (e.g.) forward.v
 *)
-Require Import floyd.base.
-Require Import floyd.client_lemmas.
-Require Import floyd.assert_lemmas.
-Require Import floyd.closed_lemmas.
-Require Import floyd.nested_pred_lemmas.
-Require Import floyd.nested_field_lemmas.
-Require Import floyd.efield_lemmas.
-Require Import floyd.mapsto_memory_block.
-Require Import floyd.reptype_lemmas.
-Require floyd.aggregate_pred. Import floyd.aggregate_pred.aggregate_pred.
-Require Import floyd.data_at_rec_lemmas.
-Require Import floyd.field_at.
-Require Import floyd.nested_loadstore.
-(*Require Import floyd.unfold_data_at.*)
-Require Import floyd.entailer.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.closed_lemmas.
+Require Import VST.floyd.nested_pred_lemmas.
+Require Import VST.floyd.nested_field_lemmas.
+Require Import VST.floyd.efield_lemmas.
+Require Import VST.floyd.mapsto_memory_block.
+Require Import VST.floyd.reptype_lemmas.
+Require VST.floyd.aggregate_pred. Import VST.floyd.aggregate_pred.aggregate_pred.
+Require Import VST.floyd.data_at_rec_lemmas.
+Require Import VST.floyd.field_at.
+Require Import VST.floyd.nested_loadstore.
+(*Require Import VST.floyd.unfold_data_at.*)
+Require Import VST.floyd.entailer.
 (*  End TEMPORARILY *)
 
 Lemma allp_andp1  {A}{ND: NatDed A}:  forall B (any: B) (p: B -> A) q, andp (allp p) q = (allp (fun x => andp (p x) q)).
@@ -935,7 +934,7 @@ apply semax_pre0 with
                       (nested_field_type list_struct
                          (StructField list_link :: nil)) y) v ::
         lseg ls dsh psh r y v2 :: R)))).
-old_go_lower; entailer.
+go_lowerx; entailer.
 Exists h r y.
 rewrite <- ?sepcon_assoc.
 normalize.
@@ -1512,7 +1511,7 @@ apply semax_pre0 with
                       (nested_field_type list_struct
                          (StructField list_link :: nil)) y) v ::
         lseg ls sh r y v2 :: R)))).
-old_go_lower; entailer.  (* Intros h r y should work here, but doesn't. *)
+go_lowerx; entailer.  (* Intros h r y should work here, but doesn't. *)
 Exists h r y.
 rewrite <- ?sepcon_assoc.
 normalize.
@@ -2174,7 +2173,7 @@ apply semax_pre0 with
                       (nested_field_type list_struct
                          (StructField list_link :: nil)) y) v ::
         lseg ls dsh psh r y v2 :: R)))).
-old_go_lower; entailer.
+go_lowerx; entailer.
 Exists h r y.
 rewrite <- ?sepcon_assoc.
 normalize.
