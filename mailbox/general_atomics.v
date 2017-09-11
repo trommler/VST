@@ -15,9 +15,12 @@ Axiom invariant_precise : forall P, precise (invariant P).
    impredicative invariants, we can drop the laters. The contents of an invariant can still be impredicative
    using HORec or the like. *)
 
+(* It may be sound to take out information in this way, but probably is not sound to transfer
+   resources without a synchronization operation. *)
 Axiom invariant_view_shift : forall {CS : compspecs} P Q R, view_shift (P * R) (Q * R) ->
   view_shift (P * invariant R) (Q * invariant R).
 
+(*Lemma invariants_view_shift : forall {CS : compspecs} lR P Q,
   view_shift (P * fold_right sepcon emp lR) (Q * fold_right sepcon emp lR) ->
   view_shift (P * fold_right sepcon emp (map invariant lR)) (Q * fold_right sepcon emp (map invariant lR)).
 Proof.
@@ -26,6 +29,7 @@ Proof.
   rewrite !sepcon_assoc, !(sepcon_comm (invariant _)), <- !sepcon_assoc.
   apply invariant_view_shift.
   etransitivity; [|etransitivity; eauto]; apply derives_view_shift; cancel.
+Qed.*)
 
 Axiom invariant_super_non_expansive : forall n P, approx n (invariant P) =
 approx n (invariant (approx n P)).
