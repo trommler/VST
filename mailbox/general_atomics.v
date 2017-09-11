@@ -14,16 +14,10 @@ Axiom invariant_precise : forall P, precise (invariant P).
 (* In Iris, invariants are named and impredicative, and so the rules are full of laters. If we forgo
    impredicative invariants, we can drop the laters. The contents of an invariant can still be impredicative
    using HORec or the like. *)
-(* This is not entirely sound, because we can duplicate an invariant and then open it, giving us something of
-   the form [P] * P. We can avoid using names only if, whenever we open invariants, we open them all in one
-   step, so that we can't open the same one twice. Names might be the easiest way to get around this, but
-   we'd also need to deal with the difference in laters (in Iris, points-to is timeless, while data_at is
-   certainly not independent of step-index in VST). *)
 
 Axiom invariant_view_shift : forall {CS : compspecs} P Q R, view_shift (P * R) (Q * R) ->
   view_shift (P * invariant R) (Q * invariant R).
 
-Lemma invariants_view_shift : forall {CS : compspecs} lR P Q,
   view_shift (P * fold_right sepcon emp lR) (Q * fold_right sepcon emp lR) ->
   view_shift (P * fold_right sepcon emp (map invariant lR)) (Q * fold_right sepcon emp (map invariant lR)).
 Proof.
@@ -32,7 +26,6 @@ Proof.
   rewrite !sepcon_assoc, !(sepcon_comm (invariant _)), <- !sepcon_assoc.
   apply invariant_view_shift.
   etransitivity; [|etransitivity; eauto]; apply derives_view_shift; cancel.
-Qed.
 
 Axiom invariant_super_non_expansive : forall n P, approx n (invariant P) =
 approx n (invariant (approx n P)).
